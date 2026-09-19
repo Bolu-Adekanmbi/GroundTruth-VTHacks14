@@ -65,7 +65,7 @@ export const SceneViewport = forwardRef<SceneViewportHandle, { project: ScenePro
     return (
       <div className={`scene-stage${scorchedPlan ? " scene-stage--scorched" : ""}${disasterPlan ? " scene-stage--disaster" : ""}`} aria-label="Interactive 3D building scene">
         <Canvas
-          camera={{ fov: 42, near: 0.1, far: 2000, position: [70, 56, 70] }}
+          camera={{ fov: 42, near: 0.1, far: 2000, position: [0, 100, 18] }}
           dpr={[1, 1.75]}
           gl={{ antialias: true, powerPreference: "high-performance", preserveDrawingBuffer: true }}
           onCreated={({ gl }) => gl.setClearColor(new Color("#d8e0dc"))}
@@ -324,7 +324,8 @@ function CameraController({ command, plan }: { command: { id: number; type: Came
     const verticalDistance = Math.max(currentPlan.bounds.depth, currentPlan.heightM) /
       (2 * Math.tan(verticalHalfFov));
     const distance = Math.max(horizontalDistance, verticalDistance, 26) * 1.2;
-    camera.position.set(distance * 0.72, distance * 0.55, distance * 0.72);
+    // Map-aligned elevated view: east is screen-right and north (-Z) is screen-top.
+    camera.position.set(0, distance * 1.35, distance * 0.22);
     controls.current?.target.set(0, currentPlan.heightM * 0.4, 0);
     controls.current?.update();
     controls.current?.saveState();

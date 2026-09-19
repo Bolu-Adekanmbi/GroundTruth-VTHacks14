@@ -67,7 +67,12 @@ export function getMaterialColor(material: BuildingTraits["material"]) {
 export function buildScenePlan(project: SceneProject): ScenePlan {
   const ring = getOuterRing(project);
   const centroid = getPolygonCentroid(ring);
-  const outline = stripClosingPoint(toLocalMeters(ring, centroid));
+  // Three's scene frame uses +Z south so a north-up map and the elevated
+  // camera share the same visual orientation.
+  const outline = stripClosingPoint(toLocalMeters(ring, centroid)).map((point) => ({
+    x: point.x,
+    z: -point.z
+  }));
   const bounds = getBounds(outline);
   const frontBearing = project.footprint.facadeOrientation?.frontBearingDeg ?? project.footprint.bearingDeg;
   const entranceBearing = getEntranceBearing(project.building.entrancePosition, frontBearing);
@@ -209,7 +214,7 @@ function normalizeVector(point: LocalMeterPoint) {
 }
 
 function bearingFromVector(vector: LocalMeterPoint) {
-  return (Math.atan2(vector.x, vector.z) * 180 / Math.PI + 360) % 360;
+  return (Math.atan2(vector.x, -vector.z) * 180 / Math.PI + 360) % 360;
 }
 
 function angularDistance(left: number, right: number) {

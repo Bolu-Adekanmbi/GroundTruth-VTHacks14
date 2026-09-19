@@ -128,7 +128,9 @@ export function GisMap({ project, onSetManualLocation }: GisMapProps) {
           longitude: centroid[0],
           latitude: centroid[1],
           zoom: 17,
-          bearing: normalizeBearing(project.footprint.bearingDeg),
+          // The map and scene both use a north-up local frame. Footprint bearing
+          // belongs to geometry, never the map camera, or the two views diverge.
+          bearing: 0,
           pitch: 0
         }}
         mapStyle={style}
