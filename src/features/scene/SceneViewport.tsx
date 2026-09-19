@@ -102,9 +102,9 @@ const BuildingMass = memo(function BuildingMass({ plan, scorched }: { plan: Scen
     const shape = new Shape();
     plan.outline.forEach((point, index) => {
       if (index === 0) {
-        shape.moveTo(point.x, point.z);
+        shape.moveTo(point.x, -point.z);
       } else {
-        shape.lineTo(point.x, point.z);
+        shape.lineTo(point.x, -point.z);
       }
     });
     shape.closePath();

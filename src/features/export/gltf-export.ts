@@ -81,7 +81,7 @@ export function downloadGlb(filename: string, binary: ArrayBuffer) {
 
 function createBuildingMass(plan: ScenePlan, scorched: boolean) {
   const shape = new Shape();
-  plan.outline.forEach((point, index) => index === 0 ? shape.moveTo(point.x, point.z) : shape.lineTo(point.x, point.z));
+  plan.outline.forEach((point, index) => index === 0 ? shape.moveTo(point.x, -point.z) : shape.lineTo(point.x, -point.z));
   shape.closePath();
   const mesh = new Mesh(
     new ExtrudeGeometry(shape, { depth: plan.heightM, bevelEnabled: false }),

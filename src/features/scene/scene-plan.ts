@@ -49,6 +49,9 @@ export interface ScenePlan {
   seed: number;
 }
 
+const WINDOW_SURFACE_OFFSET_M = 0.1;
+const ENTRANCE_SURFACE_OFFSET_M = 0.23;
+
 const materialPalette: Record<BuildingTraits["material"], string> = {
   brick: "#8f4f3f",
   concrete: "#b7b1a4",
@@ -71,18 +74,22 @@ export function buildScenePlan(project: SceneProject): ScenePlan {
   const facades = outline.map((start, index) => {
     const end = outline[(index + 1) % outline.length];
     const midpoint = { x: (start.x + end.x) / 2, z: (start.z + end.z) / 2 };
-    const outward = normalizeVector(midpoint);
+    const edge = normalizeVector({ x: end.x - start.x, z: end.z - start.z });
+    const candidateNormal = { x: -edge.z, z: edge.x };
+    const outward = candidateNormal.x * midpoint.x + candidateNormal.z * midpoint.z < 0
+      ? { x: -candidateNormal.x, z: -candidateNormal.z }
+      : candidateNormal;
     const normalBearingDeg = bearingFromVector(outward);
-    const direction = { x: end.x - start.x, z: end.z - start.z };
-
     return {
       index,
       start,
       end,
       midpoint,
       normalBearingDeg,
-      yawRad: -Math.atan2(direction.z, direction.x),
-      lengthM: Math.hypot(direction.x, direction.z),
+      // Three's local +Z is the thin/depth axis of a window. Align it to the
+      // outward facade normal so windows and scenario overlays stay on the wall.
+      yawRad: Math.atan2(outward.x, outward.z),
+      lengthM: Math.hypot(end.x - start.x, end.z - start.z),
       isFront: false,
       isEntrance: false
     };
@@ -109,7 +116,11 @@ export function buildScenePlan(project: SceneProject): ScenePlan {
     facades: markedFacades,
     windows,
     entrance: {
-      position: [entranceFacade.midpoint.x, 1.35, entranceFacade.midpoint.z],
+      position: [
+        entranceFacade.midpoint.x + Math.sin(entranceFacade.yawRad) * ENTRANCE_SURFACE_OFFSET_M,
+        1.35,
+        entranceFacade.midpoint.z + Math.cos(entranceFacade.yawRad) * ENTRANCE_SURFACE_OFFSET_M
+      ],
       yawRad: entranceFacade.yawRad
     },
     frontFacadeIndex,
@@ -138,9 +149,9 @@ function buildWindows(facades: FacadePlan[], traits: BuildingTraits, heightM: nu
 
         return {
           position: [
-            facade.midpoint.x + direction.x * distance,
+            facade.midpoint.x + direction.x * distance + Math.sin(facade.yawRad) * WINDOW_SURFACE_OFFSET_M,
             floorHeight * (floorIndex + 0.53) + verticalOffset,
-            facade.midpoint.z + direction.z * distance
+            facade.midpoint.z + direction.z * distance + Math.cos(facade.yawRad) * WINDOW_SURFACE_OFFSET_M
           ] as [number, number, number],
           scale: [windowWidth, height, 0.18] as [number, number, number],
           yawRad: facade.yawRad,

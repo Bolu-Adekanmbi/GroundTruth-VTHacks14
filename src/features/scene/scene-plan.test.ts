@@ -32,6 +32,22 @@ describe("buildScenePlan", () => {
     expect(plan.entrance.position[1]).toBeGreaterThan(0);
   });
 
+  it.each(["burruss-hall", "willard-building"])("places every window directly on an outward-facing facade for %s", (id) => {
+    const plan = buildScenePlan(demoProject(id));
+
+    for (const window of plan.windows) {
+      const facade = plan.facades[window.facadeIndex];
+      const outward = { x: Math.sin(facade.yawRad), z: Math.cos(facade.yawRad) };
+      const offset = {
+        x: window.position[0] - facade.midpoint.x,
+        z: window.position[2] - facade.midpoint.z
+      };
+
+      expect(offset.x * outward.x + offset.z * outward.z).toBeCloseTo(0.1, 5);
+      expect(facade.midpoint.x * outward.x + facade.midpoint.z * outward.z).toBeGreaterThan(0);
+    }
+  });
+
   it("keeps material family selection deterministic", () => {
     expect(getMaterialColor("brick")).toBe("#8f4f3f");
     expect(getMaterialColor("concrete")).toBe("#b7b1a4");

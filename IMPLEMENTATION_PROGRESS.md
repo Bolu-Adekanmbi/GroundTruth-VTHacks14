@@ -323,3 +323,16 @@ This log records completed implementation phases. It does not authorize starting
   - The deferred rotated-footprint renderer alignment issue from Phase 7 can also affect the procedural geometry reflected in an export.
   - An external viewer was not available in this local automation environment; the export has been validated by a binary-header check, real browser download, and independent GLTFLoader round trip. Complete the listed visual check before presenting it as externally viewer-validated.
 - Suggested commit message: `phase-15a: add self-contained GLB export`
+
+## Post-Phase Geometry Correction - Facade-Aligned Windows
+
+- Completion date: 2026-09-19
+- Change summary: Corrected the procedural building coordinate basis that had mirrored the extruded footprint relative to windows, entrance, roof, and scenario details. Facade normals now come from each actual polygon edge rather than a centroid-radial approximation. Windows and the entrance are offset outward from their true facade plane and rotate their depth axis toward that plane's exterior. The viewport and GLB builder share the corrected footprint basis.
+- Automated checks and results:
+  - `npm test` - passed, 68 tests
+  - `npm run typecheck` - passed
+  - `npm run lint` - passed
+  - `npm run build` - passed
+  - Targeted Playwright canvas regression - passed; refreshed and visually inspected Burruss Hall and Willard Building render baselines
+- Known limitations:
+  - This fixes footprint/facade geometry alignment. Photo-specific window spacing and facade detail are still procedural trait approximations rather than image-matched reconstruction.
