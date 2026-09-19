@@ -1,0 +1,25 @@
+:root {
+  --canvas: #eef2f0;
+  --surface: #fbfcfb;
+  --surface-raised: #ffffff;
+  --ink: #17201d;
+  --ink-muted: #5d6965;
+  --line: #c8d0cc;
+  --line-strong: #929e99;
+  --gis: #19778a;
+  --gis-soft: #d8edf0;
+  --action: #c77b10;
+  --action-hover: #a9650c;
+  --scorched: #b84c2c;
+  --vegetation: #557a4d;
+  --danger: #b23a3a;
+  --viewport: #151b19;
+  --viewport-grid: #34413c;
+  --focus: #146fcb;
+  --safe: #477a59;
+  --warning: #9d6b13;
+  --shadow-subtle: 0 1px 2px rgb(23 32 29 / 12%);
+  --font-ui: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Consolas, monospace;
+}
