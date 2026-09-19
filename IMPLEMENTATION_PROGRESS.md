@@ -139,3 +139,25 @@ This log records completed implementation phases. It does not authorize starting
   - 3D generation from corrected footprints begins in Phase 7.
   - Playwright/localhost checks required running outside the sandbox with approval.
 - Suggested commit message: `phase-6: add manual gis correction`
+
+## Phase 7 - Procedural Base-Building Renderer
+
+- Completion date: 2026-09-19
+- Change summary: Added a lazy-loaded React Three Fiber base-building viewport driven by a pure, deterministic local-meter scene-plan layer. Canonical and manually corrected footprint rings now extrude into building masses with facade rhythm, instanced windows, entrance placement, flat/gable roofs, material families, ground grid, north/scale cues, lighting, shadows, bounded orbit controls, and icon-driven Reset view/Fit building actions. Facade-bearing metadata selects the photo-facing facade independently of map north. The viewport preserves its camera during ordinary state changes and only refits on scene selection or explicit command; browsers without WebGL retain a clear fallback while map and metadata remain usable.
+- Automated checks and results:
+  - `npm run typecheck` - passed
+  - `npm run lint` - passed
+  - `npm test` - passed, 35 tests
+  - `npm run build` - passed
+  - `npm run test:e2e` - passed, 7 Playwright tests
+- Manual checks performed:
+  - Inspected `test-results/phase-7-desktop-1440x900.png` and `test-results/phase-7-mobile-390x844.png`; confirmed the 3D workspace is framed in the initial visible area, mobile 3D tab renders without horizontal scroll, and the central canvas is not obscured by the rails.
+  - Inspected visual regression baselines for Burruss Hall and Willard Building. Burruss renders as a broad stepped, flat-roof institutional mass; Willard renders as a smaller rectangular gable-roof academic mass.
+  - Verified Playwright canvas screenshot assertions for both curated samples, camera Reset view/Fit building actions, and the responsive mobile viewport path.
+- Known limitations or deferred items:
+  - Gable treatment is intentionally bounded to a stable ridge treatment; hip roofs and richer facade styling remain out of scope unless Phase 8 trait editing makes them necessary.
+  - Phase 7 includes only the clean Base geometry. Scorched Nebraska transformations begin in Phase 9, and Disaster overlays begin in Phase 11.
+  - Vite reports expected large lazy chunks for MapLibre and the Three.js viewport. They are isolated through dynamic imports; further bundle tuning belongs in Phase 13 performance polish.
+  - `npm install` continues to report 2 moderate transitive audit findings; no forced dependency upgrade was applied.
+  - Playwright/localhost checks required running outside the sandbox with approval.
+- Suggested commit message: `phase-7: add procedural base renderer`

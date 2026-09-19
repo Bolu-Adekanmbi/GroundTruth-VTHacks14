@@ -424,9 +424,13 @@ code {
 
 .center-workspace {
   display: grid;
+  align-self: start;
+  height: clamp(520px, calc(100vh - 88px), 920px);
   min-width: 0;
   min-height: 0;
   grid-template-rows: auto minmax(0, 1fr);
+  position: sticky;
+  top: 0;
   background: #dfe6e3;
 }
 
@@ -626,6 +630,58 @@ code {
   background-image: url("data:image/svg+xml,%3Csvg width='44' height='44' viewBox='0 0 44 44' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 .5H44M.5 0V44' stroke='%2334413c' stroke-width='1'/%3E%3C/svg%3E");
   background-size: 44px 44px;
   color: #e8eeee;
+}
+
+.scene-stage canvas {
+  position: absolute;
+  inset: 0;
+  width: 100% !important;
+  height: 100% !important;
+  touch-action: none;
+}
+
+.scene-stage--fallback {
+  background-image: none;
+}
+
+.scene-north,
+.scene-scale {
+  position: absolute;
+  z-index: 2;
+  border: 1px solid rgb(234 243 239 / 62%);
+  background: rgb(20 30 28 / 82%);
+  color: #f0f7f4;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1;
+}
+
+.scene-north {
+  top: 12px;
+  right: 12px;
+  display: grid;
+  width: 27px;
+  height: 27px;
+  place-items: center;
+  border-radius: 50%;
+  color: #b9e9dc;
+  font-weight: 700;
+}
+
+.scene-scale {
+  right: 12px;
+  bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 7px;
+}
+
+.scene-scale span {
+  display: block;
+  width: 30px;
+  height: 3px;
+  background: #b9e9dc;
 }
 
 .scene-stage > svg {
@@ -867,7 +923,9 @@ code {
   }
 
   .center-workspace {
+    height: auto;
     min-height: 520px;
+    position: static;
   }
 
   .statusbar {
@@ -920,6 +978,7 @@ code {
   }
 
   .center-workspace {
+    height: auto;
     order: 2;
     min-height: auto;
   }

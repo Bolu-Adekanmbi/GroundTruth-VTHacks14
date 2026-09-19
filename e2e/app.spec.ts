@@ -45,6 +45,20 @@ test("manually corrects footprint geometry and facade orientation", async ({ pag
   await expect(page.getByText(/manual-corrected footprint/)).toBeVisible();
 });
 
+test("renders a nonblank procedural building canvas and supports camera actions", async ({ page }) => {
+  await page.goto("/");
+
+  const canvas = page.locator(".scene-stage canvas");
+  await expect(canvas).toBeVisible();
+  await expect(canvas).toHaveScreenshot("phase-7-burruss-canvas.png");
+
+  await page.getByRole("button", { name: "Fit building" }).click();
+  await page.getByRole("button", { name: "Reset view" }).click();
+  await page.getByLabel("Curated example").selectOption("willard-building");
+  await expect(canvas).toBeVisible();
+  await expect(canvas).toHaveScreenshot("phase-7-willard-canvas.png");
+});
+
 const screenshotViewports = [
   { name: "desktop-1440x900", width: 1440, height: 900 },
   { name: "laptop-1280x720", width: 1280, height: 720 },
@@ -52,7 +66,7 @@ const screenshotViewports = [
 ];
 
 for (const viewport of screenshotViewports) {
-  test(`captures Phase 6 screenshot at ${viewport.name}`, async ({ page }) => {
+  test(`captures Phase 7 screenshot at ${viewport.name}`, async ({ page }) => {
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
     await page.goto("/");
 
@@ -60,10 +74,14 @@ for (const viewport of screenshotViewports) {
     await expect(page.getByRole("radio", { name: "Scorched Nebraska" })).toBeVisible();
     await expect(page.locator(".maplibregl-canvas")).toBeVisible();
     await expect(page.locator(".maplibregl-ctrl-attrib")).toBeVisible();
+    if (viewport.width < 768) {
+      await page.getByRole("radio", { name: "3D" }).click();
+    }
+    await expect(page.locator(".scene-stage canvas")).toBeVisible();
     await expect(page.locator("body")).toHaveJSProperty("scrollWidth", viewport.width);
     await page.screenshot({
       fullPage: true,
-      path: `test-results/phase-6-${viewport.name}.png`
+      path: `test-results/phase-7-${viewport.name}.png`
     });
   });
 }

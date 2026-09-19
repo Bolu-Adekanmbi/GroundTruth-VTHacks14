@@ -9,7 +9,6 @@ import {
 } from "react";
 import {
   Activity,
-  Box,
   Camera,
   Download,
   ExternalLink,
@@ -38,6 +37,7 @@ import { SegmentedControl } from "../components/ui/SegmentedControl";
 import { StatusIndicator } from "../components/ui/StatusIndicator";
 import { Tooltip } from "../components/ui/Tooltip";
 import { PHOTO_LIMITS } from "../features/capture/evidence-workflow";
+import type { SceneViewportHandle } from "../features/scene/SceneViewport";
 import { selectActiveProject, selectCatalog } from "../store/selectors";
 import { useSceneStore } from "../store/scene-store";
 import { formatCoordinate, formatDimension, getProjectCentroid } from "../../shared/geo";
@@ -57,6 +57,10 @@ const viewportOptions = [
 
 const GisMap = lazy(() =>
   import("../features/map/GisMap").then((module) => ({ default: module.GisMap }))
+);
+
+const SceneViewport = lazy(() =>
+  import("../features/scene/SceneViewport").then((module) => ({ default: module.SceneViewport }))
 );
 
 const traitRows: Array<{
@@ -105,6 +109,7 @@ export function App() {
   const [viewportMode, setViewportMode] = useState<ViewportMode>("map");
   const [isDragActive, setIsDragActive] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const sceneViewportRef = useRef<SceneViewportHandle>(null);
   const sceneMode = activeProject.scenario.activeMode;
   const selectedEvidence =
     activeProject.evidence.find((photo) => photo.id === selectedEvidenceId) ??
@@ -465,10 +470,18 @@ export function App() {
               <IconButton label="Locate footprint" tooltip="Locate footprint">
                 <LocateFixed aria-hidden="true" />
               </IconButton>
-              <IconButton label="Reset view" tooltip="Reset view">
+              <IconButton
+                label="Reset view"
+                onClick={() => sceneViewportRef.current?.resetView()}
+                tooltip="Reset view"
+              >
                 <RotateCcw aria-hidden="true" />
               </IconButton>
-              <IconButton label="Expand workspace" tooltip="Expand workspace">
+              <IconButton
+                label="Fit building"
+                onClick={() => sceneViewportRef.current?.fitBuilding()}
+                tooltip="Fit building"
+              >
                 <Maximize2 aria-hidden="true" />
               </IconButton>
             </div>
@@ -490,15 +503,9 @@ export function App() {
                 <span>3D Scene</span>
                 <code>{sceneMode}</code>
               </div>
-              <div className="scene-stage" aria-label="3D scene initializes in Phase 7">
-                <Box aria-hidden="true" />
-                <div className="mass-preview">
-                  <span />
-                  <span />
-                  <span />
-                </div>
-                <p>3D scene initializes in Phase 7</p>
-              </div>
+              <Suspense fallback={<SceneLoadingFallback />}>
+                <SceneViewport project={activeProject} ref={sceneViewportRef} />
+              </Suspense>
             </article>
           </div>
         </section>
@@ -616,7 +623,7 @@ export function App() {
       </main>
 
       <footer className="statusbar">
-        <StatusIndicator label="scene-ready placeholder" tone="ready" />
+        <StatusIndicator label="3D scene ready" tone="ready" />
         <span>
           Source: <strong>{activeProject.location.source}</strong>
         </span>
@@ -643,6 +650,14 @@ function MapLoadingFallback({ coordinate }: { coordinate: [number, number] }) {
         <code>{formatCoordinate(coordinate)}</code>
       </div>
       <p className="map-loading">Loading map</p>
+    </div>
+  );
+}
+
+function SceneLoadingFallback() {
+  return (
+    <div aria-label="3D scene loading" className="scene-stage scene-stage--fallback">
+      <p>Preparing procedural building</p>
     </div>
   );
 }

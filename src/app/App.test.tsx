@@ -34,7 +34,7 @@ describe("App", () => {
     expect(screen.getByLabelText("Photo upload")).toBeInTheDocument();
     expect(await screen.findByLabelText("GIS map with active footprint")).toBeInTheDocument();
     expect(screen.getByLabelText("GIS metadata")).toBeInTheDocument();
-    expect(screen.getByText("3D scene initializes in Phase 7")).toBeInTheDocument();
+    expect(await screen.findByLabelText("3D scene unavailable")).toBeInTheDocument();
   });
 
   it("updates catalog-backed scene details when a sample is selected", async () => {
