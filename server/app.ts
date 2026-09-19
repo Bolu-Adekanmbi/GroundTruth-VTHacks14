@@ -1,6 +1,7 @@
 import express from "express";
 import { existsSync } from "node:fs";
 import path from "node:path";
+import { demoScenesRouter } from "./routes/demo-scenes.js";
 import { getHealthResponse } from "./routes/health.js";
 
 const clientDistPath = path.resolve(process.cwd(), "dist");
@@ -14,6 +15,7 @@ export function createApp() {
   app.get("/api/health", (_request, response) => {
     response.status(200).json(getHealthResponse());
   });
+  app.use("/api/demo-scenes", demoScenesRouter);
 
   if (existsSync(clientDistPath)) {
     app.use(express.static(clientDistPath));

@@ -97,7 +97,8 @@ code {
 .trait-list,
 .evidence-list,
 .output-stack,
-.provenance-panel {
+.provenance-panel,
+.evidence-preview {
   display: grid;
   gap: 12px;
   padding: 14px;
@@ -129,6 +130,8 @@ code {
 }
 
 .thumbnail {
+  position: relative;
+  overflow: hidden;
   aspect-ratio: 1.8;
   border: 1px solid var(--line-strong);
   border-radius: 3px;
@@ -138,6 +141,25 @@ code {
   color: var(--ink);
   font-family: var(--font-mono);
   font-size: 12px;
+}
+
+.thumbnail img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.thumbnail span {
+  position: absolute;
+  right: 5px;
+  bottom: 4px;
+  display: grid;
+  min-width: 22px;
+  min-height: 18px;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  background: rgb(255 255 255 / 90%);
 }
 
 .thumbnail--selected {
@@ -372,6 +394,24 @@ code {
   column-gap: 10px;
 }
 
+.evidence-preview {
+  margin: 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.evidence-preview img {
+  width: 100%;
+  max-height: 172px;
+  object-fit: cover;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+}
+
+.evidence-preview figcaption {
+  color: var(--ink-muted);
+  font-size: 12px;
+}
+
 .evidence-item span {
   display: grid;
   width: 30px;
@@ -393,6 +433,23 @@ code {
 .evidence-item em {
   grid-column: 2;
   font-style: normal;
+}
+
+.source-link {
+  position: relative;
+  display: inline-grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+  background: var(--surface-raised);
+  color: var(--ink);
+}
+
+.source-link svg {
+  width: 17px;
+  height: 17px;
 }
 
 .output-row {
@@ -595,7 +652,8 @@ code {
   .trait-list,
   .evidence-list,
   .output-stack,
-  .provenance-panel {
+  .provenance-panel,
+  .evidence-preview {
     padding: 12px;
   }
 }
