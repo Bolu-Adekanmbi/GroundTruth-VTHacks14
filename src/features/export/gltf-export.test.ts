@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { Mesh } from "three";
 import { getDemoSceneById } from "../../../shared/demo-scenes";
 import { buildGlbExport, buildGlbScene, getGlbFilename } from "./gltf-export";
 
@@ -14,6 +15,7 @@ describe("GLB export", () => {
     expect(building?.getObjectByName("Windows")).toBeDefined();
     expect(building?.getObjectByName("PrimaryEntrance")).toBeDefined();
     expect(building?.getObjectByName("Roof")).toBeDefined();
+    expect((building?.getObjectByName("Roof") as Mesh).geometry.type).toBe("ExtrudeGeometry");
     expect(scene.getObjectByName("Grid")).toBeUndefined();
     expect(getGlbFilename(project)).toBe("groundtruth-burruss-hall-base.glb");
   });

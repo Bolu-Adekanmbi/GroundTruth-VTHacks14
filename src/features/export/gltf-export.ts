@@ -118,9 +118,13 @@ function createEntrance(plan: ScenePlan) {
 
 function createRoof(plan: ScenePlan) {
   if (plan.roofType === "flat") {
-    const mesh = new Mesh(new BoxGeometry(plan.bounds.width + 0.9, 0.7, plan.bounds.depth + 0.9), new MeshStandardMaterial({ color: "#4d5755", roughness: 0.86 }));
+    const shape = new Shape();
+    plan.outline.forEach((point, index) => index === 0 ? shape.moveTo(point.x, -point.z) : shape.lineTo(point.x, -point.z));
+    shape.closePath();
+    const mesh = new Mesh(new ExtrudeGeometry(shape, { depth: 0.7, bevelEnabled: false }), new MeshStandardMaterial({ color: "#4d5755", roughness: 0.86 }));
     mesh.name = "Roof";
-    mesh.position.set(0, plan.heightM + 0.35, 0);
+    mesh.position.set(0, plan.heightM, 0);
+    mesh.rotation.x = -Math.PI / 2;
     return mesh;
   }
   const ridgeHeight = Math.min(5, Math.max(2, plan.heightM * 0.14));

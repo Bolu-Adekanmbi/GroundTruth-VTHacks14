@@ -253,6 +253,18 @@ function Entrance({ plan }: { plan: ScenePlan; }) {
 }
 
 function Roof({ plan }: { plan: ScenePlan; }) {
+  const flatGeometry = useMemo(() => {
+    const shape = new Shape();
+    plan.outline.forEach((point, index) => {
+      if (index === 0) {
+        shape.moveTo(point.x, -point.z);
+      } else {
+        shape.lineTo(point.x, -point.z);
+      }
+    });
+    shape.closePath();
+    return new ExtrudeGeometry(shape, { depth: 0.7, bevelEnabled: false });
+  }, [plan.outline]);
   const gableGeometry = useMemo(() => {
     const ridgeHeight = Math.min(5, Math.max(2, plan.heightM * 0.14));
     const vertices = new Float32Array([
@@ -270,10 +282,11 @@ function Roof({ plan }: { plan: ScenePlan; }) {
     return geometry;
   }, [plan.bounds, plan.heightM]);
 
+  useEffect(() => () => flatGeometry.dispose(), [flatGeometry]);
   useEffect(() => () => gableGeometry.dispose(), [gableGeometry]);
 
   if (plan.roofType === "flat") {
-    return <mesh castShadow position={[0, plan.heightM + 0.35, 0]}><boxGeometry args={[plan.bounds.width + 0.9, 0.7, plan.bounds.depth + 0.9]} /><meshStandardMaterial color="#4d5755" roughness={0.86} /></mesh>;
+    return <mesh castShadow geometry={flatGeometry} position={[0, plan.heightM, 0]} rotation={[-Math.PI / 2, 0, 0]}><meshStandardMaterial color="#4d5755" roughness={0.86} /></mesh>;
   }
 
   return <mesh castShadow geometry={gableGeometry}><meshStandardMaterial color="#55615d" roughness={0.74} side={DoubleSide} /></mesh>;
