@@ -98,6 +98,26 @@ describe("App", () => {
     expect(screen.getByText("Willard Building east view")).toBeInTheDocument();
   });
 
+  it("opens selected evidence in a navigable focused viewer", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.upload(screen.getByLabelText("Photo upload"), [
+      imageFile("front.jpg"),
+      imageFile("side.jpg")
+    ]);
+    await user.click(screen.getByRole("button", { name: "Expand User source photo 1" }));
+
+    expect(screen.getByRole("dialog", { name: "Expanded evidence photo" })).toBeInTheDocument();
+    expect(screen.getAllByAltText("User-uploaded source photo 1.")).toHaveLength(2);
+
+    await user.click(screen.getByRole("button", { name: "Next evidence photo" }));
+    expect(screen.getByRole("dialog")).toHaveTextContent("User source photo 2");
+
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(screen.queryByRole("dialog", { name: "Expanded evidence photo" })).not.toBeInTheDocument();
+  });
+
   it("confirms reset only when user-uploaded evidence would be lost", async () => {
     const user = userEvent.setup();
     const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);

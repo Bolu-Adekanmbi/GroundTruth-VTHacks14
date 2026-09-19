@@ -10,6 +10,8 @@ import {
 import {
   Activity,
   Camera,
+  ChevronLeft,
+  ChevronRight,
   Download,
   ExternalLink,
   Layers,
@@ -145,6 +147,7 @@ export function App() {
   const [visionSuggestion, setVisionSuggestion] = useState<VisionSuggestion | null>(null);
   const [visionError, setVisionError] = useState("");
   const [visionPending, setVisionPending] = useState(false);
+  const [isEvidenceViewerOpen, setIsEvidenceViewerOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const sceneViewportRef = useRef<SceneViewportHandle>(null);
   const selectedSuggestionRef = useRef("");
@@ -165,6 +168,16 @@ export function App() {
     : "A valid WGS84 footprint is required before exporting.";
 
   useEffect(() => disposeCustomUploads, [disposeCustomUploads]);
+  useEffect(() => {
+    if (!isEvidenceViewerOpen) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setIsEvidenceViewerOpen(false);
+      if (event.key === "ArrowLeft") selectEvidenceByOffset(-1);
+      if (event.key === "ArrowRight") selectEvidenceByOffset(1);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  });
   useEffect(() => {
     if (selectedSuggestionRef.current === addressDraft) {
       selectedSuggestionRef.current = "";
@@ -214,6 +227,12 @@ export function App() {
     }
 
     resetSession();
+  }
+
+  function selectEvidenceByOffset(offset: number) {
+    const currentIndex = Math.max(0, activeProject.evidence.findIndex((photo) => photo.id === selectedEvidence.id));
+    const nextIndex = (currentIndex + offset + activeProject.evidence.length) % activeProject.evidence.length;
+    selectEvidencePhoto(activeProject.evidence[nextIndex].id);
   }
 
   async function handleVisionSuggestion() {
@@ -753,7 +772,9 @@ export function App() {
               title="Evidence"
             />
             <figure className="evidence-preview">
-              <img alt={selectedEvidence.alt} src={selectedEvidence.uri} />
+              <button aria-label={`Expand ${selectedEvidence.title}`} className="evidence-preview__open" onClick={() => setIsEvidenceViewerOpen(true)} type="button">
+                <img alt={selectedEvidence.alt} src={selectedEvidence.uri} />
+              </button>
               <figcaption>
                 {selectedEvidence.attribution.creator} · {selectedEvidence.attribution.license}
               </figcaption>
@@ -1009,6 +1030,30 @@ export function App() {
           </section>
         </aside>
       </main>
+
+      {isEvidenceViewerOpen ? <div className="evidence-lightbox" onMouseDown={() => setIsEvidenceViewerOpen(false)} role="presentation">
+        <section aria-label="Expanded evidence photo" aria-modal="true" className="evidence-lightbox__dialog" onMouseDown={(event) => event.stopPropagation()} role="dialog">
+          <div className="evidence-lightbox__header">
+            <div>
+              <strong>{selectedEvidence.title}</strong>
+              <span>{activeProject.evidence.findIndex((photo) => photo.id === selectedEvidence.id) + 1} / {activeProject.evidence.length}</span>
+            </div>
+            <IconButton label="Close expanded evidence" onClick={() => setIsEvidenceViewerOpen(false)} tooltip="Close">
+              <X aria-hidden="true" />
+            </IconButton>
+          </div>
+          <div className="evidence-lightbox__image">
+            {activeProject.evidence.length > 1 ? <IconButton label="Previous evidence photo" onClick={() => selectEvidenceByOffset(-1)} tooltip="Previous photo">
+              <ChevronLeft aria-hidden="true" />
+            </IconButton> : null}
+            <img alt={selectedEvidence.alt} src={selectedEvidence.uri} />
+            {activeProject.evidence.length > 1 ? <IconButton label="Next evidence photo" onClick={() => selectEvidenceByOffset(1)} tooltip="Next photo">
+              <ChevronRight aria-hidden="true" />
+            </IconButton> : null}
+          </div>
+          <p>{selectedEvidence.attribution.creator} · {selectedEvidence.attribution.license}</p>
+        </section>
+      </div> : null}
 
       <footer className="statusbar">
         <StatusIndicator
