@@ -6,6 +6,7 @@ import "@fontsource/ibm-plex-sans/latin-500.css";
 import "@fontsource/ibm-plex-sans/latin-600.css";
 import "@fontsource/ibm-plex-mono/latin-400.css";
 import "@fontsource/ibm-plex-mono/latin-500.css";
+import "maplibre-gl/dist/maplibre-gl.css";
 import "./styles/reset.css";
 import "./styles/tokens.css";
 import "./styles/global.css";

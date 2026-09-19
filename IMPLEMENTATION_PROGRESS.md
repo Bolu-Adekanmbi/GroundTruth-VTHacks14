@@ -94,3 +94,25 @@ This log records completed implementation phases. It does not authorize starting
   - Map and 3D remain placeholders until Phases 5 and 7.
   - Playwright/localhost checks required running outside the sandbox with approval.
 - Suggested commit message: `phase-4: add evidence capture workflow`
+
+## Phase 5 - Deterministic GIS Map And Footprints
+
+- Completion date: 2026-09-19
+- Change summary: Added MapLibre via `react-map-gl/maplibre`, a configurable OpenStreetMap raster basemap with visible attribution, lazy-loaded GIS map rendering, canonical footprint GeoJSON source/layers, centroid marker, north/orientation controls, metric scale, live coordinate readout, compact tile-failure warning, footprint/source/confidence metadata in the output inspector, and pure shared geometry utilities for bounds, centroid, dimensions, bearing normalization, and local-meter conversion.
+- Automated checks and results:
+  - `npm run typecheck` - passed
+  - `npm run lint` - passed
+  - `npm test` - passed, 27 tests
+  - `npm run build` - passed
+  - `npm run test:e2e` - passed, 5 Playwright tests
+- Manual checks performed:
+  - Inspected `test-results/phase-5-desktop-1440x900.png`; confirmed basemap, canonical footprint layer, centroid marker, controls, OpenStreetMap attribution, coordinate readout, and output GIS metadata are visible.
+  - Inspected `test-results/phase-5-mobile-390x844.png`; confirmed the mobile Map tab has no horizontal scroll, map controls fit, attribution remains visible, and the canonical footprint layer is readable.
+  - Verified sample-switch e2e flow updates GIS centroid text and curated footprint dimensions from Burruss Hall to Willard Building.
+  - Confirmed the map is lazy-loaded with a stable same-size fallback so the workspace does not jump while MapLibre loads.
+- Known limitations or deferred items:
+  - Footprints are rendered only as MapLibre GeoJSON layers from curated canonical geometry; live geocoding, live footprint lookup, and manual geometry placement begin in Phase 6.
+  - The selected no-key OpenStreetMap tile source is suitable for light demo use with visible attribution, but heavy/public production traffic should use a dedicated tile provider or configured `VITE_MAP_STYLE_URL`.
+  - `npm install` still reports 2 moderate transitive audit findings; no forced dependency upgrade was applied in Phase 5.
+  - Playwright/localhost checks required running outside the sandbox with approval.
+- Suggested commit message: `phase-5: add deterministic GIS map`

@@ -24,7 +24,7 @@ describe("App", () => {
     useSceneStore.getState().resetSession();
   });
 
-  it("renders the GroundTruth workspace shell", () => {
+  it("renders the GroundTruth workspace shell", async () => {
     render(<App />);
 
     expect(screen.getByRole("heading", { name: "GroundTruth" })).toBeInTheDocument();
@@ -32,7 +32,8 @@ describe("App", () => {
     expect(screen.getByRole("complementary", { name: "Capture and traits" })).toBeInTheDocument();
     expect(screen.getByRole("complementary", { name: "Evidence and output" })).toBeInTheDocument();
     expect(screen.getByLabelText("Photo upload")).toBeInTheDocument();
-    expect(screen.getByText("Map initializes in Phase 5")).toBeInTheDocument();
+    expect(await screen.findByLabelText("GIS map with active footprint")).toBeInTheDocument();
+    expect(screen.getByLabelText("GIS metadata")).toBeInTheDocument();
     expect(screen.getByText("3D scene initializes in Phase 7")).toBeInTheDocument();
   });
 
@@ -49,6 +50,7 @@ describe("App", () => {
     expect(screen.getByText("Willard Building east view")).toBeInTheDocument();
     expect(screen.getByText("Concrete")).toBeInTheDocument();
     expect(screen.getByText("83%")).toBeInTheDocument();
+    expect(screen.getAllByText("40.79576, -77.86442").length).toBeGreaterThan(0);
   });
 
   it("accepts custom uploads, rejects invalid files, and keeps truthful generation status", async () => {

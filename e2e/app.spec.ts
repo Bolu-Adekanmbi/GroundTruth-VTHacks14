@@ -5,7 +5,25 @@ test("loads the GroundTruth workspace shell", async ({ page }) => {
 
   await expect(page.getByRole("heading", { name: "GroundTruth" })).toBeVisible();
   await expect(page.getByRole("radiogroup", { name: "Scene mode" })).toBeVisible();
-  await expect(page.getByText("Map initializes in Phase 5")).toBeVisible();
+  await expect(page.getByLabel("GIS map with active footprint")).toBeVisible();
+  await expect(
+    page.getByRole("region", { name: "Map and 3D workspace" }).getByText("37.22887, -80.42354")
+  ).toBeVisible();
+});
+
+test("switches curated samples and updates GIS footprint metadata", async ({ page }) => {
+  await page.goto("/");
+
+  const workspace = page.getByRole("region", { name: "Map and 3D workspace" });
+  const output = page.getByRole("complementary", { name: "Evidence and output" });
+
+  await expect(workspace.getByText("37.22887, -80.42354")).toBeVisible();
+  await expect(page.getByText("curated footprint · 154m x 57m")).toBeVisible();
+
+  await page.getByLabel("Curated example").selectOption("willard-building");
+
+  await expect(output.getByText("40.79576, -77.86442")).toBeVisible();
+  await expect(page.getByText("curated footprint · 91m x 49m")).toBeVisible();
 });
 
 const screenshotViewports = [
@@ -15,16 +33,18 @@ const screenshotViewports = [
 ];
 
 for (const viewport of screenshotViewports) {
-  test(`captures Phase 2 screenshot at ${viewport.name}`, async ({ page }) => {
+  test(`captures Phase 5 screenshot at ${viewport.name}`, async ({ page }) => {
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
     await page.goto("/");
 
     await expect(page.getByRole("heading", { name: "GroundTruth" })).toBeVisible();
     await expect(page.getByRole("radio", { name: "Scorched Nebraska" })).toBeVisible();
+    await expect(page.locator(".maplibregl-canvas")).toBeVisible();
+    await expect(page.locator(".maplibregl-ctrl-attrib")).toBeVisible();
     await expect(page.locator("body")).toHaveJSProperty("scrollWidth", viewport.width);
     await page.screenshot({
       fullPage: true,
-      path: `test-results/phase-2-${viewport.name}.png`
+      path: `test-results/phase-5-${viewport.name}.png`
     });
   });
 }

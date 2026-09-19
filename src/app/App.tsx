@@ -1,4 +1,12 @@
-import { type ChangeEvent, type DragEvent, useEffect, useRef, useState } from "react";
+import {
+  type ChangeEvent,
+  type DragEvent,
+  lazy,
+  Suspense,
+  useEffect,
+  useRef,
+  useState
+} from "react";
 import {
   Activity,
   Box,
@@ -25,6 +33,7 @@ import { Tooltip } from "../components/ui/Tooltip";
 import { PHOTO_LIMITS } from "../features/capture/evidence-workflow";
 import { selectActiveProject, selectCatalog } from "../store/selectors";
 import { useSceneStore } from "../store/scene-store";
+import { formatCoordinate, formatDimension, getProjectCentroid } from "../../shared/geo";
 
 type ViewportMode = "map" | "scene";
 
@@ -38,6 +47,10 @@ const viewportOptions = [
   { value: "map", label: "Map" },
   { value: "scene", label: "3D" }
 ] satisfies Array<{ value: ViewportMode; label: string }>;
+
+const GisMap = lazy(() =>
+  import("../features/map/GisMap").then((module) => ({ default: module.GisMap }))
+);
 
 const traitRows: Array<{
   key: keyof BuildingTraits;
@@ -88,6 +101,7 @@ export function App() {
   const traitSourceLabel = isCustomScene
     ? "Best-effort defaults; review required"
     : "Seeded from curated example";
+  const footprintCentroid = getProjectCentroid(activeProject);
 
   useEffect(() => disposeCustomUploads, [disposeCustomUploads]);
 
@@ -320,22 +334,9 @@ export function App() {
                 <span>Map</span>
                 <code>EPSG:4326</code>
               </div>
-              <div className="map-stage" aria-label="Map initializes in Phase 5">
-                <div className="north-indicator">N</div>
-                <div className="coordinate-readout">
-                  {activeProject.location.latitude.toFixed(4)},{" "}
-                  {activeProject.location.longitude.toFixed(4)}
-                </div>
-                <div
-                  className="footprint-preview"
-                  style={{
-                    aspectRatio: `${activeProject.footprint.widthM} / ${activeProject.footprint.depthM}`
-                  }}
-                >
-                  <span />
-                </div>
-                <p>Map initializes in Phase 5</p>
-              </div>
+              <Suspense fallback={<MapLoadingFallback coordinate={footprintCentroid} />}>
+                <GisMap project={activeProject} />
+              </Suspense>
             </article>
 
             <article className="viewport-panel viewport-panel--scene">
@@ -396,6 +397,31 @@ export function App() {
           <section className="rail-section">
             <SectionHeader title="Output" />
             <div className="output-stack">
+              <div className="gis-inspector" aria-label="GIS metadata">
+                <div>
+                  <span>Footprint source</span>
+                  <strong>{formatLabel(activeProject.footprint.source)}</strong>
+                </div>
+                <div>
+                  <span>Centroid</span>
+                  <code>{formatCoordinate(footprintCentroid)}</code>
+                </div>
+                <div>
+                  <span>Dimensions</span>
+                  <strong>
+                    {formatDimension(activeProject.footprint.widthM)} x{" "}
+                    {formatDimension(activeProject.footprint.depthM)}
+                  </strong>
+                </div>
+                <div>
+                  <span>Bearing</span>
+                  <strong>{Math.round(activeProject.footprint.bearingDeg)} deg</strong>
+                </div>
+                <div>
+                  <span>Footprint confidence</span>
+                  <strong>{Math.round(activeProject.confidence.footprint * 100)}%</strong>
+                </div>
+              </div>
               <div className="output-row">
                 <div>
                   <strong>GeoJSON</strong>
@@ -448,6 +474,21 @@ export function App() {
           {sceneModeOptions.find((option) => option.value === sceneMode)?.label}
         </span>
       </footer>
+    </div>
+  );
+}
+
+function MapLoadingFallback({ coordinate }: { coordinate: [number, number] }) {
+  return (
+    <div aria-label="GIS map loading" className="gis-map-stage gis-map-stage--loading">
+      <div className="north-indicator" aria-label="North indicator">
+        N
+      </div>
+      <div className="coordinate-readout">
+        <span>Footprint</span>
+        <code>{formatCoordinate(coordinate)}</code>
+      </div>
+      <p className="map-loading">Loading map</p>
     </div>
   );
 }

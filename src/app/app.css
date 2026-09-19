@@ -414,7 +414,7 @@ code {
   color: var(--ink-muted);
 }
 
-.map-stage,
+.gis-map-stage,
 .scene-stage {
   position: relative;
   display: grid;
@@ -423,14 +423,30 @@ code {
   place-items: center;
 }
 
-.map-stage {
+.gis-map-stage {
   background-color: #edf4f3;
   background-image: url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 .5H40M.5 0V40' stroke='%23bddadd' stroke-width='1'/%3E%3C/svg%3E");
   background-size: 40px 40px;
 }
 
+.gis-map-stage--loading {
+  min-height: 360px;
+}
+
+.gis-map-stage .maplibregl-map {
+  position: absolute;
+  inset: 0;
+  font-family: var(--font-ui);
+}
+
+.gis-map-stage .maplibregl-ctrl-attrib {
+  color: var(--ink);
+  font-size: 11px;
+}
+
 .north-indicator {
   position: absolute;
+  z-index: 3;
   top: 14px;
   right: 14px;
   display: grid;
@@ -448,7 +464,7 @@ code {
 .coordinate-readout {
   position: absolute;
   right: 14px;
-  bottom: 14px;
+  bottom: 44px;
   border: 1px solid var(--line);
   border-radius: 3px;
   background: rgb(255 255 255 / 88%);
@@ -456,25 +472,74 @@ code {
   font-family: var(--font-mono);
   font-size: 12px;
   padding: 6px 8px;
+  z-index: 3;
 }
 
-.footprint-preview {
-  position: relative;
-  width: min(48%, 220px);
-  aspect-ratio: 1.34;
-  border: 2px solid var(--gis);
-  background: rgb(25 119 138 / 15%);
-  transform: rotate(-11deg) skewX(-4deg);
+.coordinate-readout span {
+  display: block;
+  color: var(--ink-muted);
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 600;
 }
 
-.footprint-preview span {
+.map-centroid-marker {
+  display: block;
+  width: 17px;
+  height: 17px;
+  border: 3px solid #ffffff;
+  border-radius: 50%;
+  background: var(--action);
+  box-shadow: 0 0 0 2px var(--gis);
+}
+
+.orientation-cue {
   position: absolute;
-  inset: 20% 24%;
-  border: 1px solid var(--action);
-  background: rgb(199 123 16 / 16%);
+  top: 56px;
+  right: 14px;
+  z-index: 3;
+  display: grid;
+  width: 31px;
+  height: 31px;
+  place-items: center;
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
+  background: rgb(255 255 255 / 90%);
 }
 
-.map-stage p,
+.orientation-cue span {
+  width: 0;
+  height: 0;
+  border-right: 5px solid transparent;
+  border-bottom: 17px solid var(--action);
+  border-left: 5px solid transparent;
+}
+
+.map-warning {
+  position: absolute;
+  z-index: 4;
+  left: 14px;
+  bottom: 78px;
+  max-width: min(360px, calc(100% - 28px));
+  border: 1px solid var(--warning);
+  border-radius: 3px;
+  background: #fff8e8;
+  color: var(--ink);
+  font-size: 12px;
+  line-height: 1.35;
+  padding: 7px 9px;
+}
+
+.map-loading {
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: rgb(255 255 255 / 90%);
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 7px 10px;
+}
+
 .scene-stage p {
   position: absolute;
   bottom: 54px;
@@ -609,6 +674,33 @@ code {
   display: grid;
   gap: 3px;
   min-width: 0;
+}
+
+.gis-inspector {
+  display: grid;
+  gap: 8px;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 12px;
+}
+
+.gis-inspector div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.gis-inspector span {
+  color: var(--ink-muted);
+  font-size: 12px;
+}
+
+.gis-inspector strong,
+.gis-inspector code {
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 600;
+  text-align: right;
 }
 
 .provenance-panel {
@@ -791,7 +883,7 @@ code {
     display: grid;
   }
 
-  .map-stage,
+  .gis-map-stage,
   .scene-stage {
     min-height: 360px;
   }
