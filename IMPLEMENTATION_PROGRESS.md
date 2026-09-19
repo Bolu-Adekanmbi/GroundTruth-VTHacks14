@@ -302,3 +302,24 @@ This log records completed implementation phases. It does not authorize starting
   - Fresh public basemap tiles remain network-dependent, with the Phase 12 local fallback state shown on failure.
   - The Phase 7 rotated-footprint renderer alignment issue remains deferred.
 - Suggested commit message: `phase-13: polish responsive accessible demo`
+
+## Phase 15A - GLB Export
+
+- Completion date: 2026-09-19
+- Change summary: Added a downloadable GLB (glTF 2.0 binary) for the active Base, Scorched Nebraska, or Disaster Response scene. The exported scene is rebuilt from the canonical procedural plans rather than captured from the viewport, so it excludes editor-only grid, ground, lights, camera controls, labels, and helpers. It contains named Building, BuildingMass, Windows, PrimaryEntrance, Roof, and scenario groups as applicable. Materials are procedural colors with no external textures, keeping every asset self-contained. Root extras document local meter scale, Y-up orientation, and the local coordinate convention.
+- Automated checks and results:
+  - `npm run typecheck` - passed
+  - `npm test` - passed, 66 tests
+  - `npm run lint` - passed
+  - `npm run build` - passed
+  - Focused Playwright GLB download check - passed; verified Disaster Response filename, nonempty binary payload, and `glTF` header
+  - GLTFLoader round-trip test - passed; reloaded the generated GLB and verified expected building and scenario nodes
+- Manual review instructions:
+  - Run `npm run dev`, choose each relevant scene mode, then use **Download GLB 3D model** in Outputs.
+  - Open the resulting file in an independent GLB viewer, such as the Khronos glTF Sample Viewer or a desktop GLB viewer. Confirm the building, windows, roof, and active scenario overlays are present; no editor grid, lights, or labels should appear.
+  - Confirm the viewer reports or visually honors meters and Y-up orientation. The building is centered at the local origin and its world coordinate mapping is recorded in GLB extras.
+- Known limitations or deferred items:
+  - The GLB is a procedural demo model; it does not claim photo-accurate reconstruction or surveyed facade placement.
+  - The deferred rotated-footprint renderer alignment issue from Phase 7 can also affect the procedural geometry reflected in an export.
+  - An external viewer was not available in this local automation environment; the export has been validated by a binary-header check, real browser download, and independent GLTFLoader round trip. Complete the listed visual check before presenting it as externally viewer-validated.
+- Suggested commit message: `phase-15a: add self-contained GLB export`

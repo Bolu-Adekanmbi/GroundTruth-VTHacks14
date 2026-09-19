@@ -132,6 +132,23 @@ test("downloads parseable GeoJSON and metadata for the active Scorched scene", a
   expect(metadata.export.scenario_provenance.claim).toBe("simulated");
 });
 
+test("downloads a nonempty GLB for the active scenario", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("radio", { name: "Disaster Response" }).click();
+  await page.getByRole("combobox", { name: "Damage type" }).selectOption("fire");
+  await page.getByLabel("Damage severity").fill("0.7");
+
+  const [download] = await Promise.all([
+    page.waitForEvent("download"),
+    page.getByRole("button", { name: "Download GLB 3D model" }).click()
+  ]);
+  const binary = await readFile(await download.path());
+
+  expect(download.suggestedFilename()).toBe("groundtruth-burruss-hall-disaster.glb");
+  expect(binary.byteLength).toBeGreaterThan(1_000);
+  expect(binary.subarray(0, 4).toString("utf8")).toBe("glTF");
+});
+
 test("renders an operational Disaster configuration with a distinct canvas", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("radio", { name: "Disaster Response" }).click();

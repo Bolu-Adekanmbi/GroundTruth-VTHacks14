@@ -167,4 +167,11 @@ describe("App", () => {
     expect(screen.getByDisplayValue(/Requires verification/)).toBeInTheDocument();
     expect(useSceneStore.getState().activeProject.scenario.disaster.blockedEntrances).toEqual(["primary"]);
   });
+
+  it("offers an active-scenario GLB download alongside GIS exports", () => {
+    render(<App />);
+
+    expect(screen.getByRole("button", { name: "Download GLB 3D model" })).toBeEnabled();
+    expect(screen.getByText("glTF 2.0 binary · meters · Y-up · active scenario")).toBeInTheDocument();
+  });
 });

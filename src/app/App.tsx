@@ -43,6 +43,7 @@ import {
   downloadJson,
   getExportFilename
 } from "../features/export/export-builders";
+import { buildGlbExport, downloadGlb, getGlbFilename } from "../features/export/gltf-export";
 import type { SceneViewportHandle } from "../features/scene/SceneViewport";
 import { createResponderSummary } from "../features/scene/disaster-plan";
 import { useNetworkStatus } from "../features/resilience/network-status";
@@ -188,8 +189,13 @@ export function App() {
     resetSession();
   }
 
-  function handleDownload(format: "geojson" | "metadata") {
+  async function handleDownload(format: "geojson" | "metadata" | "glb") {
     try {
+      if (format === "glb") {
+        downloadGlb(getGlbFilename(activeProject), await buildGlbExport(activeProject));
+        setExportError("");
+        return;
+      }
       const payload = format === "geojson"
         ? buildGeoJsonExport(activeProject)
         : buildMetadataExport(activeProject);
@@ -705,7 +711,7 @@ export function App() {
                     GIS-compatible geometry · ArcGIS-ready attributes
                   </span>
                 </div>
-                <IconButton disabled={Boolean(exportDisabledReason)} label="Download GeoJSON" onClick={() => handleDownload("geojson")} tooltip={exportDisabledReason || "Download GeoJSON"}>
+                <IconButton disabled={Boolean(exportDisabledReason)} label="Download GeoJSON" onClick={() => void handleDownload("geojson")} tooltip={exportDisabledReason || "Download GeoJSON"}>
                   <Download aria-hidden="true" />
                 </IconButton>
               </div>
@@ -714,7 +720,16 @@ export function App() {
                   <strong>Metadata JSON</strong>
                   <span>Evidence, confidence, assumptions, and scenario state</span>
                 </div>
-                <IconButton disabled={Boolean(exportDisabledReason)} label="Download metadata" onClick={() => handleDownload("metadata")} tooltip={exportDisabledReason || "Download metadata"}>
+                <IconButton disabled={Boolean(exportDisabledReason)} label="Download metadata" onClick={() => void handleDownload("metadata")} tooltip={exportDisabledReason || "Download metadata"}>
+                  <Download aria-hidden="true" />
+                </IconButton>
+              </div>
+              <div className="output-row">
+                <div>
+                  <strong>GLB 3D model</strong>
+                  <span>glTF 2.0 binary · meters · Y-up · active scenario</span>
+                </div>
+                <IconButton disabled={Boolean(exportDisabledReason)} label="Download GLB 3D model" onClick={() => void handleDownload("glb")} tooltip={exportDisabledReason || "Download GLB 3D model"}>
                   <Download aria-hidden="true" />
                 </IconButton>
               </div>
