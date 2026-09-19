@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { polygonFeatureSchema, sceneProjectSchema } from "./scene-schema.js";
+import { buildingTraitsSchema, polygonFeatureSchema, sceneProjectSchema } from "./scene-schema.js";
 
 export const apiSourceSchema = z.enum(["curated", "live", "fallback"]);
 
@@ -89,6 +89,22 @@ export const footprintResponseSchema = z.object({
   warnings: z.array(z.string())
 });
 
+export const extractTraitsRequestSchema = z.object({
+  sceneId: z.string().min(1).optional(),
+  custom: z.boolean().default(false)
+});
+
+export const extractTraitsResponseSchema = z.object({
+  ok: z.literal(true),
+  data: z.object({
+    traits: buildingTraitsSchema,
+    confidence: z.number().min(0).max(1),
+    status: z.enum(["seeded", "review-required"])
+  }),
+  source: apiSourceSchema,
+  warnings: z.array(z.string())
+});
+
 export type HealthResponse = z.infer<typeof healthResponseSchema>;
 export type ApiFailure = z.infer<typeof apiFailureSchema>;
 export type DemoSceneSummary = z.infer<typeof demoSceneSummarySchema>;
@@ -100,3 +116,5 @@ export type GeocodeResult = z.infer<typeof geocodeResultSchema>;
 export type FootprintRequest = z.infer<typeof footprintRequestSchema>;
 export type FootprintResponse = z.infer<typeof footprintResponseSchema>;
 export type FootprintResult = z.infer<typeof footprintResultSchema>;
+export type ExtractTraitsRequest = z.infer<typeof extractTraitsRequestSchema>;
+export type ExtractTraitsResponse = z.infer<typeof extractTraitsResponseSchema>;

@@ -4,6 +4,7 @@ import path from "node:path";
 import { demoScenesRouter } from "./routes/demo-scenes.js";
 import { gisRouter } from "./routes/gis.js";
 import { getHealthResponse } from "./routes/health.js";
+import { traitsRouter } from "./routes/traits.js";
 
 const clientDistPath = path.resolve(process.cwd(), "dist");
 
@@ -18,6 +19,7 @@ export function createApp() {
   });
   app.use("/api/demo-scenes", demoScenesRouter);
   app.use("/api", gisRouter);
+  app.use("/api", traitsRouter);
 
   if (existsSync(clientDistPath)) {
     app.use(express.static(clientDistPath));

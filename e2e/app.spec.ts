@@ -45,6 +45,27 @@ test("manually corrects footprint geometry and facade orientation", async ({ pag
   await expect(page.getByText(/manual-corrected footprint/)).toBeVisible();
 });
 
+test("edits base traits, records manual state, and resets the selected seed", async ({ page }) => {
+  await page.goto("/");
+
+  const floors = page.getByRole("spinbutton", { name: "Floors" });
+  const material = page.getByRole("combobox", { name: "Material" });
+  await floors.fill("7");
+  await material.selectOption("metal");
+
+  await expect(floors).toHaveValue("7");
+  await expect(material).toHaveValue("metal");
+  await expect(page.getByText("Manually edited").first()).toBeVisible();
+
+  await page.getByRole("radio", { name: "Scorched Nebraska" }).click();
+  await page.getByRole("radio", { name: "Base" }).click();
+  await expect(floors).toHaveValue("7");
+
+  await page.getByRole("button", { name: "Reset scene edits" }).click();
+  await expect(floors).toHaveValue("5");
+  await expect(material).toHaveValue("brick");
+});
+
 test("renders a nonblank procedural building canvas and supports camera actions", async ({ page }) => {
   await page.goto("/");
 
@@ -66,7 +87,7 @@ const screenshotViewports = [
 ];
 
 for (const viewport of screenshotViewports) {
-  test(`captures Phase 7 screenshot at ${viewport.name}`, async ({ page }) => {
+  test(`captures Phase 8 screenshot at ${viewport.name}`, async ({ page }) => {
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
     await page.goto("/");
 
@@ -81,7 +102,7 @@ for (const viewport of screenshotViewports) {
     await expect(page.locator("body")).toHaveJSProperty("scrollWidth", viewport.width);
     await page.screenshot({
       fullPage: true,
-      path: `test-results/phase-7-${viewport.name}.png`
+      path: `test-results/phase-8-${viewport.name}.png`
     });
   });
 }

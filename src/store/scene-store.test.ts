@@ -98,6 +98,7 @@ describe("scene store", () => {
 
     expect(result.current.generationSteps.every((step) => step.status === "complete")).toBe(true);
     expect(result.current.generationSteps[3].detail).toBe("Seeded from curated example");
+    expect(result.current.generationState).toBe("ready");
 
     act(() => result.current.addEvidenceFiles([imageFile("custom.jpg")]));
     await act(async () => {
@@ -111,5 +112,26 @@ describe("scene store", () => {
       "warning"
     ]);
     expect(result.current.generationSteps[3].detail).toBe("Best-effort defaults; review required");
+    expect(result.current.generationState).toBe("review-required");
+  });
+
+  it("tracks manual trait provenance, preserves it across modes, and resets to the selected seed", () => {
+    const { result } = renderHook(() => useSceneStore());
+
+    act(() => result.current.updateBuildingTrait("floors", 8));
+    act(() => result.current.updateBuildingTrait("material", "metal"));
+    act(() => result.current.setSceneMode("scorched"));
+
+    expect(result.current.activeProject.building.floors).toBe(8);
+    expect(result.current.activeProject.building.material).toBe("metal");
+    expect(result.current.activeProject.scenario.activeMode).toBe("scorched");
+    expect(result.current.activeProject.provenance.some((record) => record.target === "building.floors")).toBe(true);
+
+    act(() => result.current.resetBuildingTrait("floors"));
+    expect(result.current.activeProject.building.floors).toBe(5);
+
+    act(() => result.current.resetSceneEdits());
+    expect(result.current.activeProject.building.material).toBe("brick");
+    expect(result.current.activeProject.scenario.activeMode).toBe("scorched");
   });
 });

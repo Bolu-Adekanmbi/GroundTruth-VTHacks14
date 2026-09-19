@@ -156,8 +156,30 @@ This log records completed implementation phases. It does not authorize starting
   - Verified Playwright canvas screenshot assertions for both curated samples, camera Reset view/Fit building actions, and the responsive mobile viewport path.
 - Known limitations or deferred items:
   - Gable treatment is intentionally bounded to a stable ridge treatment; hip roofs and richer facade styling remain out of scope unless Phase 8 trait editing makes them necessary.
+  - Rotated footprint rendering can misalign facade windows and roof treatments relative to the map footprint. The user chose to defer this Phase 7 coordinate-basis correction in favor of completing the end-to-end demo; do not present rotated/manual footprints as spatially aligned until it is repaired.
   - Phase 7 includes only the clean Base geometry. Scorched Nebraska transformations begin in Phase 9, and Disaster overlays begin in Phase 11.
   - Vite reports expected large lazy chunks for MapLibre and the Three.js viewport. They are isolated through dynamic imports; further bundle tuning belongs in Phase 13 performance polish.
   - `npm install` continues to report 2 moderate transitive audit findings; no forced dependency upgrade was applied.
   - Playwright/localhost checks required running outside the sandbox with approval.
 - Suggested commit message: `phase-7: add procedural base renderer`
+
+## Phase 8 - Trait Editing, Provenance, And Shared-State Integration
+
+- Completion date: 2026-09-19
+- Change summary: Replaced the read-only trait list with compact canonical controls for building type, floors, height, material, roof, window pattern, and entrance. Added row-level trait reset, whole-scene reset, per-trait manual provenance, explicit seeded/assumed/manual labels, confidence labels with numeric values, linked assumption paths, and truthful `scene-ready` versus `review-required` status. Added a schema-validated `/api/extract-traits` route that returns curated seeded traits or conservative custom defaults without claiming model inference.
+- Automated checks and results:
+  - `npm run typecheck` - passed
+  - `npm run lint` - passed
+  - `npm test` - passed, 39 tests
+  - `npm run build` - passed
+  - `npm run test:e2e` - passed, 8 Playwright tests
+- Manual checks performed:
+  - Inspected `test-results/phase-8-desktop-1440x900.png` and `test-results/phase-8-mobile-390x844.png`; confirmed compact controls, reset actions, provenance paths, confidence wording, and the mobile 3D tab fit without horizontal scroll.
+  - Verified `POST /api/extract-traits` for Burruss Hall returns seeded traits, `0.84` trait confidence, and the `Rear facade not represented in evidence.` warning.
+  - Verified trait edits survive mode switching and reset to the selected seeded record through unit, component, and Playwright coverage.
+- Known limitations or deferred items:
+  - The user-directed deferred rotated-footprint renderer alignment issue remains from Phase 7; trait edits are canonical but rotated map/3D spatial alignment still needs a focused coordinate-basis repair.
+  - Custom trait extraction intentionally remains conservative defaults. No vision-model claim is made.
+  - Scorched Nebraska visuals remain deferred to Phase 9; this phase completes only the Base workflow.
+  - Vite continues to report expected large lazy chunks for MapLibre and Three.js. Bundle tuning belongs in Phase 13.
+- Suggested commit message: `phase-8: add trait editing and provenance`

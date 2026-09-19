@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { defaultDemoSceneId, demoScenes, getDemoSceneById } from "../../shared/demo-scenes";
 import {
   sceneProjectSchema,
+  type BuildingTraits,
   type EvidencePhoto,
   type SceneMode,
   type SceneProject
@@ -19,6 +20,7 @@ import {
 import { deriveProjectTitle, validateEvidenceFiles } from "../features/capture/evidence-workflow";
 
 export type GenerationStepStatus = "idle" | "complete" | "pending" | "warning";
+export type GenerationState = "draft" | "ready" | "review-required";
 
 export interface GenerationStep {
   id: "validate-evidence" | "resolve-location" | "prepare-footprint" | "prepare-traits";
@@ -30,12 +32,14 @@ export interface GenerationStep {
 interface SceneStore {
   catalog: SceneProject[];
   activeProject: SceneProject;
+  seedProject: SceneProject;
   selectedEvidenceId: string;
   addressDraft: string;
   uploadErrors: string[];
   uploadedEvidenceSizes: Record<string, number>;
   generationSteps: GenerationStep[];
   generationMessage: string;
+  generationState: GenerationState;
   uploadSequence: number;
   loadDemoScene: (id: string) => void;
   setSceneMode: (mode: SceneMode) => void;
@@ -50,6 +54,9 @@ interface SceneStore {
   rotateFootprint: (degrees: number) => void;
   scaleFootprint: (scale: number) => void;
   setFacadeOrientation: (frontBearingDeg: number, viewpointBearingDeg: number) => void;
+  updateBuildingTrait: <Key extends keyof BuildingTraits>(key: Key, value: BuildingTraits[Key]) => void;
+  resetBuildingTrait: (key: keyof BuildingTraits) => void;
+  resetSceneEdits: () => void;
   resetSession: () => void;
   disposeCustomUploads: () => void;
 }
@@ -86,6 +93,10 @@ const idleGenerationSteps: GenerationStep[] = [
 
 function cloneDefaultProject() {
   return sceneProjectSchema.parse(getDemoSceneById(defaultDemoSceneId));
+}
+
+function cloneProject(project: SceneProject) {
+  return sceneProjectSchema.parse(project);
 }
 
 function cloneGenerationSteps(steps = idleGenerationSteps) {
@@ -486,12 +497,14 @@ function getTotalUploadedBytes(uploadedEvidenceSizes: Record<string, number>) {
 export const useSceneStore = create<SceneStore>((set) => ({
   catalog: demoScenes,
   activeProject: defaultProject,
+  seedProject: cloneProject(defaultProject),
   selectedEvidenceId: defaultProject.evidence[0].id,
   addressDraft: defaultProject.location.address,
   uploadErrors: [],
   uploadedEvidenceSizes: {},
   generationSteps: cloneGenerationSteps(),
   generationMessage: "Curated sample ready. Generate when evidence is selected.",
+  generationState: "draft",
   uploadSequence: 0,
   loadDemoScene: (id) => {
     const scene = getDemoSceneById(id);
@@ -505,12 +518,14 @@ export const useSceneStore = create<SceneStore>((set) => ({
 
     set({
       activeProject,
+      seedProject: cloneProject(activeProject),
       selectedEvidenceId: activeProject.evidence[0].id,
       addressDraft: activeProject.location.address,
       uploadErrors: [],
       uploadedEvidenceSizes: {},
       generationSteps: cloneGenerationSteps(),
-      generationMessage: "Curated sample ready. Generate when evidence is selected."
+      generationMessage: "Curated sample ready. Generate when evidence is selected.",
+      generationState: "draft"
     });
   },
   setSceneMode: (mode) => {
@@ -534,10 +549,12 @@ export const useSceneStore = create<SceneStore>((set) => ({
 
       return {
         activeProject,
+        seedProject: cloneProject(activeProject),
         addressDraft: address,
         selectedEvidenceId: state.selectedEvidenceId,
         generationSteps: cloneGenerationSteps(),
-        generationMessage: "Custom address updated. Generate to refresh workflow status."
+        generationMessage: "Custom address updated. Generate to refresh workflow status.",
+        generationState: "draft"
       };
     });
   },
@@ -573,6 +590,7 @@ export const useSceneStore = create<SceneStore>((set) => ({
 
       return {
         activeProject,
+        seedProject: cloneProject(activeProject),
         selectedEvidenceId: state.selectedEvidenceId.startsWith("custom-photo-")
           ? state.selectedEvidenceId
           : evidence[0].id,
@@ -580,7 +598,8 @@ export const useSceneStore = create<SceneStore>((set) => ({
         uploadedEvidenceSizes: nextSizes,
         uploadSequence: startingSequence + acceptedFiles.length,
         generationSteps: cloneGenerationSteps(),
-        generationMessage: "Custom evidence queued. Generate to prepare available scene inputs."
+        generationMessage: "Custom evidence queued. Generate to prepare available scene inputs.",
+        generationState: "draft"
       };
     });
   },
@@ -608,12 +627,14 @@ export const useSceneStore = create<SceneStore>((set) => ({
 
         return {
           activeProject,
+          seedProject: cloneProject(activeProject),
           selectedEvidenceId: activeProject.evidence[0].id,
           addressDraft: activeProject.location.address,
           uploadedEvidenceSizes: {},
           uploadErrors: [],
           generationSteps: cloneGenerationSteps(),
-          generationMessage: "Curated sample restored after removing the last custom photo."
+          generationMessage: "Curated sample restored after removing the last custom photo.",
+          generationState: "draft"
         };
       }
 
@@ -623,11 +644,13 @@ export const useSceneStore = create<SceneStore>((set) => ({
 
       return {
         activeProject,
+        seedProject: cloneProject(activeProject),
         selectedEvidenceId,
         uploadedEvidenceSizes,
         uploadErrors: [],
         generationSteps: cloneGenerationSteps(),
-        generationMessage: "Custom evidence changed. Generate to refresh workflow status."
+        generationMessage: "Custom evidence changed. Generate to refresh workflow status.",
+        generationState: "draft"
       };
     });
   },
@@ -674,16 +697,19 @@ export const useSceneStore = create<SceneStore>((set) => ({
 
       set({
         generationSteps,
-        generationMessage: "Resolving custom scene GIS placement."
+        generationMessage: "Resolving custom scene GIS placement.",
+        generationState: "draft"
       });
 
       const resolved = await resolveCustomScene(state.activeProject, state.addressDraft);
 
       set({
         activeProject: resolved.project,
+        seedProject: cloneProject(resolved.project),
         addressDraft: resolved.project.location.address,
         generationSteps: resolved.steps,
-        generationMessage: resolved.message
+        generationMessage: "Scene ready for review. Custom traits are conservative defaults.",
+        generationState: "review-required"
       });
       return;
     }
@@ -752,7 +778,8 @@ export const useSceneStore = create<SceneStore>((set) => ({
         generationSteps,
         generationMessage: isCurrentCustom
           ? "Custom input validated. Use manual GIS controls to place and correct the footprint."
-          : "Curated scene generated from seeded evidence, location, footprint, and traits."
+          : "Scene ready from seeded evidence, location, footprint, and traits.",
+        generationState: isCurrentCustom ? "review-required" : "ready"
       };
     });
   },
@@ -877,18 +904,88 @@ export const useSceneStore = create<SceneStore>((set) => ({
       generationMessage: "Facade orientation marked for later 3D generation."
     }));
   },
+  updateBuildingTrait: (key, value) => {
+    set((state) => {
+      const manualId = `manual-trait-${key}`;
+      const activeProject = sceneProjectSchema.parse({
+        ...state.activeProject,
+        updatedAt: new Date().toISOString(),
+        building: { ...state.activeProject.building, [key]: value },
+        confidence: { ...state.activeProject.confidence, traits: Math.min(state.activeProject.confidence.traits, 0.72) },
+        assumptions: ensureAssumption(state.activeProject.assumptions, {
+          id: manualId,
+          claim: `${formatTraitLabel(key)} was manually edited and should be reviewed against source evidence.`,
+          affectedPath: `building.${key}`,
+          evidenceClaim: "assumed",
+          rationale: "Manual edits are intentional overrides of seeded or inferred trait values."
+        }),
+        provenance: [
+          ...state.activeProject.provenance.filter((record) => record.id !== manualId),
+          {
+            id: manualId,
+            target: `building.${key}`,
+            source: "manual",
+            claim: "assumed",
+            label: `Manually edited ${formatTraitLabel(key)}`,
+            evidenceIds: state.activeProject.evidence.map((photo) => photo.id)
+          }
+        ]
+      });
+
+      return {
+        activeProject,
+        generationMessage: `${formatTraitLabel(key)} manually updated. Scene remains ready.`,
+        generationState: state.generationState === "draft" ? "ready" : state.generationState
+      };
+    });
+  },
+  resetBuildingTrait: (key) => {
+    set((state) => {
+      const manualId = `manual-trait-${key}`;
+      const activeProject = sceneProjectSchema.parse({
+        ...state.activeProject,
+        updatedAt: new Date().toISOString(),
+        building: { ...state.activeProject.building, [key]: state.seedProject.building[key] },
+        assumptions: state.activeProject.assumptions.filter((assumption) => assumption.id !== manualId),
+        provenance: state.activeProject.provenance.filter((record) => record.id !== manualId)
+      });
+
+      return { activeProject, generationMessage: `${formatTraitLabel(key)} restored from the selected seed.` };
+    });
+  },
+  resetSceneEdits: () => {
+    set((state) => {
+      const activeProject = sceneProjectSchema.parse({
+        ...cloneProject(state.seedProject),
+        scenario: {
+          ...state.seedProject.scenario,
+          activeMode: state.activeProject.scenario.activeMode
+        }
+      });
+
+      return {
+        activeProject,
+        selectedEvidenceId: activeProject.evidence[0].id,
+        addressDraft: activeProject.location.address,
+        generationMessage: "Scene edits reset to the selected seeded record.",
+        generationState: activeProject.id === "custom-session" ? "review-required" : "ready"
+      };
+    });
+  },
   resetSession: () => {
     revokeCustomObjectUrls();
     const activeProject = cloneDefaultProject();
 
     set({
       activeProject,
+      seedProject: cloneProject(activeProject),
       selectedEvidenceId: activeProject.evidence[0].id,
       addressDraft: activeProject.location.address,
       uploadErrors: [],
       uploadedEvidenceSizes: {},
       generationSteps: cloneGenerationSteps(),
       generationMessage: "Curated sample ready. Generate when evidence is selected.",
+      generationState: "draft",
       uploadSequence: 0
     });
   },
@@ -896,3 +993,7 @@ export const useSceneStore = create<SceneStore>((set) => ({
     revokeCustomObjectUrls();
   }
 }));
+
+function formatTraitLabel(key: keyof BuildingTraits) {
+  return key.replace(/([A-Z])/g, " $1").replace(/^./, (character) => character.toUpperCase());
+}

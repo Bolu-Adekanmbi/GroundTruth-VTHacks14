@@ -49,7 +49,7 @@ describe("App", () => {
     expect(screen.getByDisplayValue("640 Pollock Road, University Park, PA 16802")).toBeInTheDocument();
     expect(screen.getByText("Willard Building east view")).toBeInTheDocument();
     expect(screen.getByText("Concrete")).toBeInTheDocument();
-    expect(screen.getByText("83%")).toBeInTheDocument();
+    expect(screen.getByText("83% evidence-backed")).toBeInTheDocument();
     expect(screen.getAllByText("40.79576, -77.86442").length).toBeGreaterThan(0);
   });
 
@@ -70,7 +70,7 @@ describe("App", () => {
     );
     expect(screen.getByText("55 Demo Lane")).toBeInTheDocument();
     expect(screen.getByText("notes.txt is not a JPEG, PNG, or WebP image.")).toBeInTheDocument();
-    expect(screen.getAllByText("Best-effort defaults; review required").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Assumed; review required").length).toBeGreaterThan(0);
 
     await user.click(screen.getByRole("button", { name: "Generate scene" }));
 
@@ -120,5 +120,23 @@ describe("App", () => {
 
     expect(screen.getByRole("combobox", { name: "Curated example" })).toHaveValue("burruss-hall");
     expect(revokeObjectURLMock).toHaveBeenCalledWith("blob:app-front.jpg");
+  });
+
+  it("edits traits through canonical state and restores the selected seed", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    fireEvent.change(screen.getByLabelText("Floors"), { target: { value: "7" } });
+    await user.selectOptions(screen.getByLabelText("Material"), "metal");
+
+    expect(useSceneStore.getState().activeProject.building.floors).toBe(7);
+    expect(useSceneStore.getState().activeProject.building.material).toBe("metal");
+    expect(screen.getAllByText("Manually edited")).toHaveLength(2);
+
+    await user.click(screen.getByRole("button", { name: "Reset Floors" }));
+    expect(useSceneStore.getState().activeProject.building.floors).toBe(5);
+
+    await user.click(screen.getByRole("button", { name: "Reset scene edits" }));
+    expect(useSceneStore.getState().activeProject.building.material).toBe("brick");
   });
 });

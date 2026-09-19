@@ -73,14 +73,27 @@ const traitRows: Array<{
   { key: "heightM", label: "Height", format: (value) => `${String(value)} m` },
   { key: "material", label: "Material", format: formatLabel },
   { key: "roofType", label: "Roof type", format: formatLabel },
+  { key: "windowPattern", label: "Window pattern", format: formatLabel },
   { key: "entrancePosition", label: "Entrance", format: formatLabel }
 ];
+
+const traitOptions: Partial<Record<keyof BuildingTraits, Array<{ value: string; label: string }>>> = {
+  buildingType: ["institutional", "academic", "warehouse", "office", "mixed-use"].map(option),
+  material: ["brick", "concrete", "glass", "siding", "metal"].map(option),
+  roofType: ["flat", "gable", "hip"].map(option),
+  windowPattern: ["regular", "vertical-bands", "mixed", "sparse"].map(option),
+  entrancePosition: ["north", "south", "east", "west", "corner", "unknown"].map(option)
+};
 
 function formatLabel(value: unknown) {
   return String(value)
     .split("-")
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
+}
+
+function option(value: string) {
+  return { value, label: formatLabel(value) };
 }
 
 export function App() {
@@ -104,6 +117,9 @@ export function App() {
   const rotateFootprint = useSceneStore((state) => state.rotateFootprint);
   const scaleFootprint = useSceneStore((state) => state.scaleFootprint);
   const setFacadeOrientation = useSceneStore((state) => state.setFacadeOrientation);
+  const updateBuildingTrait = useSceneStore((state) => state.updateBuildingTrait);
+  const resetBuildingTrait = useSceneStore((state) => state.resetBuildingTrait);
+  const resetSceneEdits = useSceneStore((state) => state.resetSceneEdits);
   const resetSession = useSceneStore((state) => state.resetSession);
   const disposeCustomUploads = useSceneStore((state) => state.disposeCustomUploads);
   const [viewportMode, setViewportMode] = useState<ViewportMode>("map");
@@ -116,9 +132,7 @@ export function App() {
     activeProject.evidence[0];
   const confidencePercent = Math.round(activeProject.confidence.overall * 100);
   const isCustomScene = activeProject.id === "custom-session";
-  const traitSourceLabel = isCustomScene
-    ? "Best-effort defaults; review required"
-    : "Seeded from curated example";
+  const generationState = useSceneStore((state) => state.generationState);
   const footprintCentroid = getProjectCentroid(activeProject);
   const facadeOrientation = activeProject.footprint.facadeOrientation;
 
@@ -441,15 +455,78 @@ export function App() {
           </section>
 
           <section className="rail-section rail-section--grow">
-            <SectionHeader title="Traits" />
+            <SectionHeader
+              action={
+                <IconButton
+                  label="Reset scene edits"
+                  onClick={resetSceneEdits}
+                  tooltip="Reset scene edits"
+                >
+                  <RotateCcw aria-hidden="true" />
+                </IconButton>
+              }
+              title="Traits"
+            />
             <div className="trait-list">
               {traitRows.map((row) => {
                 const value = activeProject.building[row.key];
+                const manuallyEdited = activeProject.provenance.some(
+                  (record) => record.id === `manual-trait-${row.key}`
+                );
+                const selectableOptions = traitOptions[row.key];
                 return (
-                  <div className="trait-row" key={row.key}>
+                  <div className="trait-row trait-row--editor" key={row.key}>
                     <span>{row.label}</span>
-                    <strong>{row.format ? row.format(value) : String(value)}</strong>
-                    <em>{traitSourceLabel}</em>
+                    <div className="trait-row__control">
+                      {selectableOptions ? (
+                        <select
+                          aria-label={row.label}
+                          onChange={(event) =>
+                            updateBuildingTrait(
+                              row.key,
+                              event.currentTarget.value as BuildingTraits[typeof row.key]
+                            )
+                          }
+                          value={String(value)}
+                        >
+                          {selectableOptions.map((item) => (
+                            <option key={item.value} value={item.value}>
+                              {item.label}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input
+                          aria-label={row.label}
+                          min={row.key === "floors" ? 1 : 2.5}
+                          onChange={(event) =>
+                            updateBuildingTrait(
+                              row.key,
+                              Number(event.currentTarget.value) as BuildingTraits[typeof row.key]
+                            )
+                          }
+                          step={row.key === "floors" ? 1 : 0.5}
+                          type="number"
+                          value={value}
+                        />
+                      )}
+                      {manuallyEdited ? (
+                        <IconButton
+                          label={`Reset ${row.label}`}
+                          onClick={() => resetBuildingTrait(row.key)}
+                          tooltip={`Reset ${row.label}`}
+                        >
+                          <RotateCcw aria-hidden="true" />
+                        </IconButton>
+                      ) : null}
+                    </div>
+                    <em>
+                      {manuallyEdited
+                        ? "Manually edited"
+                        : isCustomScene
+                          ? "Assumed; review required"
+                          : "Seeded from curated example"}
+                    </em>
                   </div>
                 );
               })}
@@ -612,10 +689,15 @@ export function App() {
             <div className="provenance-panel">
               <div>
                 <span>Confidence</span>
-                <strong>{confidencePercent}%</strong>
+                <strong>
+                  {confidencePercent}% {confidencePercent >= 75 ? "evidence-backed" : "review required"}
+                </strong>
               </div>
               {activeProject.assumptions.map((assumption) => (
-                <p key={assumption.id}>{assumption.claim}</p>
+                <p key={assumption.id}>
+                  <code>{assumption.affectedPath}</code>
+                  {assumption.claim}
+                </p>
               ))}
             </div>
           </section>
@@ -623,7 +705,16 @@ export function App() {
       </main>
 
       <footer className="statusbar">
-        <StatusIndicator label="3D scene ready" tone="ready" />
+        <StatusIndicator
+          label={
+            generationState === "ready"
+              ? "scene-ready"
+              : generationState === "review-required"
+                ? "scene ready; review traits"
+                : "scene draft"
+          }
+          tone={generationState === "draft" ? "warning" : "ready"}
+        />
         <span>
           Source: <strong>{activeProject.location.source}</strong>
         </span>

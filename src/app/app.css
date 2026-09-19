@@ -398,6 +398,41 @@ code {
   grid-template-columns: 1fr auto;
 }
 
+.trait-row--editor {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 5px;
+}
+
+.trait-row--editor > span {
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.trait-row__control {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 7px;
+}
+
+.trait-row__control select,
+.trait-row__control input {
+  min-width: 0;
+  height: 32px;
+  font-size: 12px;
+}
+
+.trait-row__control .icon-button {
+  width: 30px;
+  height: 30px;
+}
+
+.trait-row__control .icon-button svg {
+  width: 15px;
+  height: 15px;
+}
+
 .trait-row span,
 .evidence-item em,
 .output-row span,
@@ -412,6 +447,16 @@ code {
 .provenance-panel strong {
   font-size: 14px;
   font-weight: 600;
+}
+
+.provenance-panel p {
+  display: grid;
+  gap: 3px;
+}
+
+.provenance-panel p code {
+  color: var(--gis);
+  font-size: 11px;
 }
 
 .trait-row em {
