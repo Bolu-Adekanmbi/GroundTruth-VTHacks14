@@ -5,6 +5,22 @@
   background: var(--canvas);
 }
 
+.app-recovery {
+  display: grid;
+  min-height: 100vh;
+  place-content: center;
+  gap: 14px;
+  background: var(--canvas);
+  color: var(--ink);
+  text-align: center;
+}
+
+.gis-map-stage--loading .button,
+.scene-stage--fallback .button {
+  position: relative;
+  z-index: 2;
+}
+
 .topbar {
   display: grid;
   min-height: 56px;

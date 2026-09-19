@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import type { BuildingTraits, SceneMode } from "../../shared/scene-schema";
 import { Button } from "../components/ui/Button";
+import { ErrorBoundary } from "../components/ui/ErrorBoundary";
 import { FieldWrapper } from "../components/ui/FieldWrapper";
 import { IconButton } from "../components/ui/IconButton";
 import { SectionHeader } from "../components/ui/SectionHeader";
@@ -45,6 +46,7 @@ import {
 } from "../features/export/export-builders";
 import type { SceneViewportHandle } from "../features/scene/SceneViewport";
 import { createResponderSummary } from "../features/scene/disaster-plan";
+import { useNetworkStatus } from "../features/resilience/network-status";
 import { selectActiveProject, selectCatalog } from "../store/selectors";
 import { useSceneStore } from "../store/scene-store";
 import { formatCoordinate, formatDimension, getProjectCentroid } from "../../shared/geo";
@@ -131,6 +133,7 @@ export function App() {
   const resetSceneEdits = useSceneStore((state) => state.resetSceneEdits);
   const resetSession = useSceneStore((state) => state.resetSession);
   const disposeCustomUploads = useSceneStore((state) => state.disposeCustomUploads);
+  const confirmCustomTraits = useSceneStore((state) => state.confirmCustomTraits);
   const [viewportMode, setViewportMode] = useState<ViewportMode>("map");
   const [isDragActive, setIsDragActive] = useState(false);
   const [exportError, setExportError] = useState("");
@@ -143,6 +146,8 @@ export function App() {
   const confidencePercent = Math.round(activeProject.confidence.overall * 100);
   const isCustomScene = activeProject.id === "custom-session";
   const generationState = useSceneStore((state) => state.generationState);
+  const customTraitsConfirmed = useSceneStore((state) => state.customTraitsConfirmed);
+  const online = useNetworkStatus();
   const footprintCentroid = getProjectCentroid(activeProject);
   const facadeOrientation = activeProject.footprint.facadeOrientation;
   const disasterSummary = createResponderSummary(activeProject.scenario.disaster);
@@ -197,11 +202,13 @@ export function App() {
   }
 
   return (
+    <ErrorBoundary fallback={<AppRecovery onLoadDemo={() => loadDemoScene("burruss-hall")} />}>
     <div className="app-shell">
       <header className="topbar">
         <div className="brand-lockup">
           <h1>GroundTruth</h1>
           <StatusIndicator label="curated source" tone="ready" />
+          <StatusIndicator label={online ? "online" : "offline: curated demo available"} tone={online ? "neutral" : "warning"} />
         </div>
         <div className="location-chip">
           <MapPin aria-hidden="true" />
@@ -345,6 +352,11 @@ export function App() {
                     </li>
                   ))}
                 </ol>
+                {isCustomScene && generationState === "review-required" ? (
+                  <Button onClick={confirmCustomTraits} variant="secondary">
+                    {customTraitsConfirmed ? "Custom traits confirmed" : "Confirm custom traits"}
+                  </Button>
+                ) : null}
               </div>
               <div className="manual-gis-panel" aria-label="Manual GIS correction controls">
                 <div className="manual-gis-panel__header">
@@ -597,7 +609,9 @@ export function App() {
                 <code>EPSG:4326</code>
               </div>
               <Suspense fallback={<MapLoadingFallback coordinate={footprintCentroid} />}>
-                <GisMap project={activeProject} onSetManualLocation={setManualLocation} />
+                <ErrorBoundary fallback={<MapRecovery onLoadDemo={() => loadDemoScene("burruss-hall")} />}>
+                  <GisMap project={activeProject} onSetManualLocation={setManualLocation} />
+                </ErrorBoundary>
               </Suspense>
             </article>
 
@@ -607,7 +621,9 @@ export function App() {
                 <code>{sceneMode}</code>
               </div>
               <Suspense fallback={<SceneLoadingFallback />}>
-                <SceneViewport project={activeProject} ref={sceneViewportRef} />
+                <ErrorBoundary fallback={<SceneRecovery onLoadDemo={() => loadDemoScene("burruss-hall")} />}>
+                  <SceneViewport project={activeProject} ref={sceneViewportRef} />
+                </ErrorBoundary>
               </Suspense>
             </article>
           </div>
@@ -903,7 +919,20 @@ export function App() {
         </span>
       </footer>
     </div>
+    </ErrorBoundary>
   );
+}
+
+function AppRecovery({ onLoadDemo }: { onLoadDemo: () => void }) {
+  return <div className="app-recovery" role="alert"><strong>GroundTruth needs to recover.</strong><Button onClick={onLoadDemo}>Load demo scene</Button></div>;
+}
+
+function MapRecovery({ onLoadDemo }: { onLoadDemo: () => void }) {
+  return <div className="gis-map-stage gis-map-stage--loading" role="alert"><p className="map-loading">Map unavailable. Footprint exports remain available.</p><Button onClick={onLoadDemo}>Load demo scene</Button></div>;
+}
+
+function SceneRecovery({ onLoadDemo }: { onLoadDemo: () => void }) {
+  return <div className="scene-stage scene-stage--fallback" role="alert"><p>3D preview unavailable. Map and exports remain available.</p><Button onClick={onLoadDemo}>Load demo scene</Button></div>;
 }
 
 function MapLoadingFallback({ coordinate }: { coordinate: [number, number]; }) {

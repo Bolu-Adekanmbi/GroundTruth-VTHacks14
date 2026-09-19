@@ -146,6 +146,28 @@ test("renders an operational Disaster configuration with a distinct canvas", asy
   await expect(page.locator(".scene-stage canvas")).toHaveScreenshot("phase-11-disaster-burruss-canvas.png");
 });
 
+test("keeps curated scenes usable offline and guides custom trait confirmation", async ({ page, context }) => {
+  await page.goto("/");
+  await context.setOffline(true);
+  await expect(page.getByText("offline: curated demo available")).toBeVisible();
+  await page.getByLabel("Curated example").selectOption("willard-building");
+  await expect(page.getByText("Willard Building east view")).toBeVisible();
+  await context.setOffline(false);
+
+  await page.getByLabel("Address").fill("55 Demo Lane");
+  await page.getByLabel("Photo upload").setInputFiles({ name: "front.jpg", mimeType: "image/jpeg", buffer: Buffer.from("photo") });
+  await page.getByRole("button", { name: "Generate scene" }).click();
+  await expect(page.getByRole("button", { name: "Confirm custom traits" })).toBeVisible();
+  await page.getByRole("button", { name: "Confirm custom traits" }).click();
+  await expect(page.getByText("scene-ready")).toBeVisible();
+});
+
+test("shows a recoverable map warning when basemap tiles fail", async ({ page }) => {
+  await page.route("**tile.openstreetmap.org/**", (route) => route.abort());
+  await page.goto("/");
+  await expect(page.getByText("Basemap tiles are unavailable; footprint and GIS state remain visible.")).toBeVisible();
+});
+
 const screenshotViewports = [
   { name: "desktop-1440x900", width: 1440, height: 900 },
   { name: "laptop-1280x720", width: 1280, height: 720 },

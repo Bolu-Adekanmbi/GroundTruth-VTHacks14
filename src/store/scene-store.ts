@@ -40,6 +40,8 @@ interface SceneStore {
   generationSteps: GenerationStep[];
   generationMessage: string;
   generationState: GenerationState;
+  customTraitsConfirmed: boolean;
+  generationRun: number;
   uploadSequence: number;
   loadDemoScene: (id: string) => void;
   setSceneMode: (mode: SceneMode) => void;
@@ -50,6 +52,7 @@ interface SceneStore {
   removeEvidencePhoto: (id: string) => void;
   selectEvidencePhoto: (id: string) => void;
   generateScene: () => Promise<void>;
+  confirmCustomTraits: () => void;
   setManualLocation: (coordinate: LngLat) => void;
   updateManualFootprint: (widthM: number, depthM: number, bearingDeg: number) => void;
   nudgeFootprint: (eastM: number, northM: number) => void;
@@ -65,6 +68,7 @@ interface SceneStore {
 
 const defaultProject = sceneProjectSchema.parse(getDemoSceneById(defaultDemoSceneId));
 const customObjectUrls = new Set<string>();
+let activeGenerationController: AbortController | null = null;
 
 const idleGenerationSteps: GenerationStep[] = [
   {
@@ -108,6 +112,20 @@ function cloneGenerationSteps(steps = idleGenerationSteps) {
 function revokeCustomObjectUrls() {
   customObjectUrls.forEach((url) => URL.revokeObjectURL(url));
   customObjectUrls.clear();
+}
+
+function cancelActiveGeneration() {
+  activeGenerationController?.abort();
+  activeGenerationController = null;
+}
+
+async function fetchWithTimeout(url: string, options: RequestInit, signal: AbortSignal) {
+  const timeout = window.setTimeout(() => activeGenerationController?.abort(), 8_000);
+  try {
+    return await fetch(url, { ...options, signal });
+  } finally {
+    window.clearTimeout(timeout);
+  }
 }
 
 function createUploadEvidence(file: File, id: string, index: number): EvidencePhoto {
@@ -313,18 +331,18 @@ function ensureProvenance(
   return provenance.some((item) => item.id === record.id) ? provenance : [...provenance, record];
 }
 
-async function resolveCustomScene(project: SceneProject, addressDraft: string) {
+async function resolveCustomScene(project: SceneProject, addressDraft: string, signal: AbortSignal) {
   const warnings: string[] = [];
   let nextProject = project;
   let locationResolved = false;
   let footprintResolved = false;
 
   try {
-    const geocodeResponse = await fetch("/api/geocode", {
+    const geocodeResponse = await fetchWithTimeout("/api/geocode", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ address: addressDraft })
-    });
+    }, signal);
 
     if (geocodeResponse.ok) {
       const payload = (await geocodeResponse.json()) as {
@@ -370,7 +388,7 @@ async function resolveCustomScene(project: SceneProject, addressDraft: string) {
   }
 
   try {
-    const footprintResponse = await fetch("/api/footprint", {
+    const footprintResponse = await fetchWithTimeout("/api/footprint", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -381,7 +399,7 @@ async function resolveCustomScene(project: SceneProject, addressDraft: string) {
         depthM: nextProject.footprint.depthM,
         bearingDeg: nextProject.footprint.bearingDeg
       })
-    });
+    }, signal);
 
     if (footprintResponse.ok) {
       const payload = (await footprintResponse.json()) as {
@@ -507,6 +525,8 @@ export const useSceneStore = create<SceneStore>((set) => ({
   generationSteps: cloneGenerationSteps(),
   generationMessage: "Curated sample ready. Generate when evidence is selected.",
   generationState: "draft",
+  customTraitsConfirmed: false,
+  generationRun: 0,
   uploadSequence: 0,
   loadDemoScene: (id) => {
     const scene = getDemoSceneById(id);
@@ -515,10 +535,11 @@ export const useSceneStore = create<SceneStore>((set) => ({
       throw new Error(`Unknown demo scene id: ${id}`);
     }
 
+    cancelActiveGeneration();
     revokeCustomObjectUrls();
     const activeProject = sceneProjectSchema.parse(scene);
 
-    set({
+    set((state) => ({
       activeProject,
       seedProject: cloneProject(activeProject),
       selectedEvidenceId: activeProject.evidence[0].id,
@@ -527,8 +548,10 @@ export const useSceneStore = create<SceneStore>((set) => ({
       uploadedEvidenceSizes: {},
       generationSteps: cloneGenerationSteps(),
       generationMessage: "Curated sample ready. Generate when evidence is selected.",
-      generationState: "draft"
-    });
+      generationState: "draft",
+      customTraitsConfirmed: false,
+      generationRun: state.generationRun + 1
+    }));
   },
   setSceneMode: (mode) => {
     set((state) => ({
@@ -593,6 +616,8 @@ export const useSceneStore = create<SceneStore>((set) => ({
         return { addressDraft: address };
       }
 
+      cancelActiveGeneration();
+
       const activeProject = buildCustomProject(address, state.activeProject.evidence);
 
       return {
@@ -602,7 +627,9 @@ export const useSceneStore = create<SceneStore>((set) => ({
         selectedEvidenceId: state.selectedEvidenceId,
         generationSteps: cloneGenerationSteps(),
         generationMessage: "Custom address updated. Generate to refresh workflow status.",
-        generationState: "draft"
+        generationState: "draft",
+        customTraitsConfirmed: false,
+        generationRun: state.generationRun + 1
       };
     });
   },
@@ -622,6 +649,7 @@ export const useSceneStore = create<SceneStore>((set) => ({
         return { uploadErrors: errors };
       }
 
+      cancelActiveGeneration();
       if (state.activeProject.id !== "custom-session") {
         revokeCustomObjectUrls();
       }
@@ -647,7 +675,9 @@ export const useSceneStore = create<SceneStore>((set) => ({
         uploadSequence: startingSequence + acceptedFiles.length,
         generationSteps: cloneGenerationSteps(),
         generationMessage: "Custom evidence queued. Generate to prepare available scene inputs.",
-        generationState: "draft"
+        generationState: "draft",
+        customTraitsConfirmed: false,
+        generationRun: state.generationRun + 1
       };
     });
   },
@@ -657,6 +687,7 @@ export const useSceneStore = create<SceneStore>((set) => ({
         return state;
       }
 
+      cancelActiveGeneration();
       const photo = state.activeProject.evidence.find((evidence) => evidence.id === id);
 
       if (!photo) {
@@ -710,10 +741,14 @@ export const useSceneStore = create<SceneStore>((set) => ({
   },
   generateScene: async () => {
     const state = useSceneStore.getState();
+    const generationRun = state.generationRun + 1;
     const isCustom = state.activeProject.id === "custom-session";
     const hasAddress = deriveProjectTitle(state.addressDraft) !== "Untitled field scene";
 
     if (isCustom && hasAddress) {
+      cancelActiveGeneration();
+      const controller = new AbortController();
+      activeGenerationController = controller;
       const generationSteps: GenerationStep[] = [
         {
           id: "validate-evidence",
@@ -743,12 +778,19 @@ export const useSceneStore = create<SceneStore>((set) => ({
       ];
 
       set({
+        generationRun,
         generationSteps,
         generationMessage: "Resolving custom scene GIS placement.",
         generationState: "draft"
       });
 
-      const resolved = await resolveCustomScene(state.activeProject, state.addressDraft);
+      const resolved = await resolveCustomScene(state.activeProject, state.addressDraft, controller.signal);
+
+      const current = useSceneStore.getState();
+      if (current.generationRun !== generationRun || current.activeProject.id !== state.activeProject.id) {
+        return;
+      }
+      activeGenerationController = null;
 
       set({
         activeProject: resolved.project,
@@ -756,7 +798,8 @@ export const useSceneStore = create<SceneStore>((set) => ({
         addressDraft: resolved.project.location.address,
         generationSteps: resolved.steps,
         generationMessage: "Scene ready for review. Custom traits are conservative defaults.",
-        generationState: "review-required"
+        generationState: "review-required",
+        customTraitsConfirmed: false
       });
       return;
     }
@@ -826,6 +869,16 @@ export const useSceneStore = create<SceneStore>((set) => ({
           ? "Custom input validated. Use manual GIS controls to place and correct the footprint."
           : "Scene ready from seeded evidence, location, footprint, and traits.",
         generationState: isCurrentCustom ? "review-required" : "ready"
+      };
+    });
+  },
+  confirmCustomTraits: () => {
+    set((state) => {
+      if (state.activeProject.id !== "custom-session") return state;
+      return {
+        customTraitsConfirmed: true,
+        generationState: "ready",
+        generationMessage: "Custom traits confirmed. Scene remains editable and reviewable."
       };
     });
   },
@@ -1019,10 +1072,11 @@ export const useSceneStore = create<SceneStore>((set) => ({
     });
   },
   resetSession: () => {
+    cancelActiveGeneration();
     revokeCustomObjectUrls();
     const activeProject = cloneDefaultProject();
 
-    set({
+    set((state) => ({
       activeProject,
       seedProject: cloneProject(activeProject),
       selectedEvidenceId: activeProject.evidence[0].id,
@@ -1032,8 +1086,10 @@ export const useSceneStore = create<SceneStore>((set) => ({
       generationSteps: cloneGenerationSteps(),
       generationMessage: "Curated sample ready. Generate when evidence is selected.",
       generationState: "draft",
+      customTraitsConfirmed: false,
+      generationRun: state.generationRun + 1,
       uploadSequence: 0
-    });
+    }));
   },
   disposeCustomUploads: () => {
     revokeCustomObjectUrls();

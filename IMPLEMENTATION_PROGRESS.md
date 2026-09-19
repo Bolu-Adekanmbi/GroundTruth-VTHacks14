@@ -255,3 +255,26 @@ This log records completed implementation phases. It does not authorize starting
   - Vite continues to report expected large lazy chunks for MapLibre and Three.js. Bundle tuning belongs in Phase 13.
   - Playwright/localhost checks required running outside the sandbox with approval.
 - Suggested commit message: `phase-11: add disaster response mode`
+
+## Phase 12 - Custom Upload Hardening And Offline Resilience
+
+- Completion date: 2026-09-19
+- Change summary: Added application, map, and 3D error boundaries with a one-action `Load demo scene` recovery path. Added a subtle online/offline status indicator, explicit map loading/failure states, browser-side timeout/cancellation for custom GIS requests, and a generation-run guard that prevents stale custom results from replacing a newer selected demo. Custom scenes now remain `review-required` until a user explicitly confirms the conservative editable traits; uploads remain session-only and are revoked on removal/reset.
+- Automated checks and results:
+  - `npm run typecheck` - passed
+  - `npm run lint` - passed
+  - `npm test` - passed, 63 tests
+  - `npm run build` - passed
+  - `npm run test:e2e` - passed, 16 Playwright tests
+- Manual checks performed:
+  - Inspected `test-results/phase-8-desktop-1440x900.png`; confirmed the online status is compact and the Base workspace remains readable without control collisions.
+  - Verified the focused Playwright tile-failure case renders `Basemap tiles are unavailable; footprint and GIS state remain visible.` rather than blanking the application.
+  - Verified custom generation followed by an immediate demo switch cannot overwrite the selected curated scene when the stale request completes.
+  - Verified curated sample switching remains usable while offline after initial load, and the custom confirmation control transitions a custom scene from review-required to ready.
+- Known limitations or deferred items:
+  - The no-key OSM basemap cannot render fresh tiles while offline; curated footprints, evidence, procedural scenes, metadata, and exports remain local and usable after the application has loaded.
+  - Custom network resolution still depends on the optional GIS adapters; failures preserve manual placement and review-required state rather than fabricating results.
+  - The Phase 7 rotated-footprint renderer alignment issue remains deferred.
+  - Vite continues to report expected large lazy chunks for MapLibre and Three.js. Bundle tuning belongs in Phase 13.
+  - Playwright/localhost checks required running outside the sandbox with approval.
+- Suggested commit message: `phase-12: harden custom and offline workflows`

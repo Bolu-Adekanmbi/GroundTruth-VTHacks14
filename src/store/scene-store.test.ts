@@ -162,4 +162,35 @@ describe("scene store", () => {
     expect(result.current.activeProject.scenario.disaster.blockedEntrances).toEqual(["primary"]);
     expect(result.current.activeProject.provenance.find((record) => record.target === "scenario.disaster")?.claim).toBe("inferred");
   });
+
+  it("does not let a stale custom generation overwrite a newly loaded demo", async () => {
+    const fetchMock = vi.fn((_url: string, options?: RequestInit) => new Promise<Response>((resolve, reject) => {
+      options?.signal?.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")));
+      setTimeout(() => resolve(new Response(JSON.stringify({ data: {}, warnings: [] }))), 20);
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+    const { result } = renderHook(() => useSceneStore());
+
+    act(() => result.current.setAddressDraft("55 Demo Lane"));
+    act(() => result.current.addEvidenceFiles([imageFile("custom.jpg")]));
+    let generating: Promise<void>;
+    act(() => {
+      generating = result.current.generateScene();
+      result.current.loadDemoScene("willard-building");
+    });
+    await act(async () => { await generating; });
+
+    expect(result.current.activeProject.id).toBe("willard-building");
+    vi.unstubAllGlobals();
+  });
+
+  it("requires custom trait confirmation before marking a custom scene ready", () => {
+    const { result } = renderHook(() => useSceneStore());
+    act(() => result.current.setAddressDraft("55 Demo Lane"));
+    act(() => result.current.addEvidenceFiles([imageFile("custom.jpg")]));
+    act(() => result.current.confirmCustomTraits());
+
+    expect(result.current.customTraitsConfirmed).toBe(true);
+    expect(result.current.generationState).toBe("ready");
+  });
 });
