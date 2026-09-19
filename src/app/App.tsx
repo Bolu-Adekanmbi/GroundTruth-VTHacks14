@@ -37,6 +37,12 @@ import { SegmentedControl } from "../components/ui/SegmentedControl";
 import { StatusIndicator } from "../components/ui/StatusIndicator";
 import { Tooltip } from "../components/ui/Tooltip";
 import { PHOTO_LIMITS } from "../features/capture/evidence-workflow";
+import {
+  buildGeoJsonExport,
+  buildMetadataExport,
+  downloadJson,
+  getExportFilename
+} from "../features/export/export-builders";
 import type { SceneViewportHandle } from "../features/scene/SceneViewport";
 import { selectActiveProject, selectCatalog } from "../store/selectors";
 import { useSceneStore } from "../store/scene-store";
@@ -125,6 +131,7 @@ export function App() {
   const disposeCustomUploads = useSceneStore((state) => state.disposeCustomUploads);
   const [viewportMode, setViewportMode] = useState<ViewportMode>("map");
   const [isDragActive, setIsDragActive] = useState(false);
+  const [exportError, setExportError] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const sceneViewportRef = useRef<SceneViewportHandle>(null);
   const sceneMode = activeProject.scenario.activeMode;
@@ -136,6 +143,9 @@ export function App() {
   const generationState = useSceneStore((state) => state.generationState);
   const footprintCentroid = getProjectCentroid(activeProject);
   const facadeOrientation = activeProject.footprint.facadeOrientation;
+  const exportDisabledReason = activeProject.footprint.feature.geometry.coordinates[0]?.length >= 4
+    ? ""
+    : "A valid WGS84 footprint is required before exporting.";
 
   useEffect(() => disposeCustomUploads, [disposeCustomUploads]);
 
@@ -169,6 +179,18 @@ export function App() {
     }
 
     resetSession();
+  }
+
+  function handleDownload(format: "geojson" | "metadata") {
+    try {
+      const payload = format === "geojson"
+        ? buildGeoJsonExport(activeProject)
+        : buildMetadataExport(activeProject);
+      downloadJson(getExportFilename(activeProject, format), payload);
+      setExportError("");
+    } catch {
+      setExportError("Export validation failed. Review the footprint and scene fields, then try again.");
+    }
   }
 
   return (
@@ -665,23 +687,24 @@ export function App() {
                 <div>
                   <strong>GeoJSON</strong>
                   <span>
-                    {activeProject.footprint.source} footprint · {activeProject.footprint.widthM}m x{" "}
-                    {activeProject.footprint.depthM}m
+                    GIS-compatible geometry · ArcGIS-ready attributes
                   </span>
                 </div>
-                <IconButton label="Download GeoJSON" tooltip="Download GeoJSON">
+                <IconButton disabled={Boolean(exportDisabledReason)} label="Download GeoJSON" onClick={() => handleDownload("geojson")} tooltip={exportDisabledReason || "Download GeoJSON"}>
                   <Download aria-hidden="true" />
                 </IconButton>
               </div>
               <div className="output-row">
                 <div>
                   <strong>Metadata JSON</strong>
-                  <span>{activeProject.provenance.length} provenance records</span>
+                  <span>Evidence, confidence, assumptions, and scenario state</span>
                 </div>
-                <IconButton label="Download metadata" tooltip="Download metadata">
+                <IconButton disabled={Boolean(exportDisabledReason)} label="Download metadata" onClick={() => handleDownload("metadata")} tooltip={exportDisabledReason || "Download metadata"}>
                   <Download aria-hidden="true" />
                 </IconButton>
               </div>
+              {exportDisabledReason ? <p className="export-message">{exportDisabledReason}</p> : null}
+              {exportError ? <p className="export-message export-message--error" role="alert">{exportError}</p> : null}
             </div>
           </section>
 

@@ -205,3 +205,26 @@ This log records completed implementation phases. It does not authorize starting
   - Vite continues to report expected large lazy chunks for MapLibre and Three.js. Bundle tuning belongs in Phase 13.
   - Playwright/localhost checks required running outside the sandbox with approval.
 - Suggested commit message: `phase-9: add scorched nebraska transformation`
+
+## Phase 10 - GeoJSON And Metadata Exports
+
+- Completion date: 2026-09-19
+- Change summary: Replaced placeholder export controls with schema-validated, browser-only Blob downloads. Added pure GeoJSON and metadata builders with deterministic scene/mode filenames. GeoJSON exports canonical WGS84 footprint geometry, flat GIS-compatible/ArcGIS-ready attributes, trait-derived entrance access points where available, and a simulated generated-debris point in Scorched mode. Metadata retains the nested scene record, sanitized evidence references and attribution, timestamp/app version, and explicit scenario provenance without browser object URLs. Export failures surface a recoverable validation message.
+- Automated checks and results:
+  - `npm run typecheck` - passed
+  - `npm run lint` - passed
+  - `npm test` - passed, 47 tests
+  - `npm run build` - passed
+  - `npm run test:e2e` - passed, 10 Playwright tests
+- Manual checks performed:
+  - Inspected `test-results/phase-8-desktop-1440x900.png`; confirmed the compact output inspector has clear GeoJSON and Metadata JSON download controls, GIS-compatible/ArcGIS-ready wording, and no layout collision with spatial metadata.
+  - Verified fixture/golden tests validate Base and Scorched exports for both curated buildings.
+  - Verified Playwright downloads both Scorched files, parses their schemas, confirms polygon coordinates and simulated generated-debris provenance, and confirms a manual floors edit is reflected in exported GeoJSON.
+  - Confirmed metadata omits browser evidence object URLs and labels generated Scorched treatment as simulated rather than observed source evidence.
+- Known limitations or deferred items:
+  - Exports are standards-based GeoJSON and JSON, not native ArcGIS packages. They are labeled GIS-compatible and use flattened ArcGIS-ready attributes.
+  - Entrance points are trait-derived approximate access points, not surveyed entrance coordinates.
+  - The Phase 7 rotated-footprint coordinate-basis issue remains deferred and affects visual alignment only; the exported GeoJSON remains the canonical footprint data.
+  - Vite continues to report expected large lazy chunks for MapLibre and Three.js. Bundle tuning belongs in Phase 13.
+  - Playwright/localhost checks required running outside the sandbox with approval.
+- Suggested commit message: `phase-10: add geojson and metadata exports`

@@ -1,4 +1,6 @@
 import { expect, test } from "@playwright/test";
+import { readFile } from "node:fs/promises";
+import { geoJsonExportSchema, metadataExportSchema } from "../src/features/export/export-builders";
 
 test("loads the GroundTruth workspace shell", async ({ page }) => {
   await page.goto("/");
@@ -18,12 +20,12 @@ test("switches curated samples and updates GIS footprint metadata", async ({ pag
   const output = page.getByRole("complementary", { name: "Evidence and output" });
 
   await expect(workspace.getByText("37.22887, -80.42354")).toBeVisible();
-  await expect(page.getByText("curated footprint · 154m x 57m")).toBeVisible();
+  await expect(output.getByText("154 m x 57 m")).toBeVisible();
 
   await page.getByLabel("Curated example").selectOption("willard-building");
 
   await expect(output.getByText("40.79576, -77.86442")).toBeVisible();
-  await expect(page.getByText("curated footprint · 91m x 49m")).toBeVisible();
+  await expect(output.getByText("91 m x 49 m")).toBeVisible();
 });
 
 test("manually corrects footprint geometry and facade orientation", async ({ page }) => {
@@ -42,7 +44,6 @@ test("manually corrects footprint geometry and facade orientation", async ({ pag
   await page.getByRole("button", { name: "Nudge east" }).click();
 
   await expect(output.getByText("Manual Corrected")).toBeVisible();
-  await expect(page.getByText(/manual-corrected footprint/)).toBeVisible();
 });
 
 test("edits base traits, records manual state, and resets the selected seed", async ({ page }) => {
@@ -98,6 +99,37 @@ test("renders an editable deterministic Scorched Nebraska treatment", async ({ p
   await page.getByRole("radio", { name: "Base" }).click();
   await page.getByRole("radio", { name: "Scorched Nebraska" }).click();
   await expect(scorch).toHaveValue("0.9");
+});
+
+test("downloads parseable GeoJSON and metadata for the active Scorched scene", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("radio", { name: "Scorched Nebraska" }).click();
+  await page.getByRole("spinbutton", { name: "Floors" }).fill("7");
+
+  const [geojsonDownload] = await Promise.all([
+    page.waitForEvent("download"),
+    page.getByRole("button", { name: "Download GeoJSON" }).click()
+  ]);
+  const geojson = geoJsonExportSchema.parse(JSON.parse(await readFile(await geojsonDownload.path(), "utf8")) as unknown);
+  expect(geojsonDownload.suggestedFilename()).toBe("groundtruth-burruss-hall-scorched.geojson");
+  expect(geojson.type).toBe("FeatureCollection");
+  const footprint = geojson.features[0];
+  if (!footprint || footprint.geometry.type !== "Polygon") throw new Error("Expected footprint polygon");
+  expect(footprint.geometry.coordinates[0]?.[0]?.length).toBe(2);
+  expect(geojson.features[0].properties.scene_mode).toBe("scorched");
+  expect(geojson.features[0].properties.floors).toBe(7);
+  expect(geojson.features.some((feature) => feature.properties.claim === "simulated")).toBe(true);
+
+  const [metadataDownload] = await Promise.all([
+    page.waitForEvent("download"),
+    page.getByRole("button", { name: "Download metadata" }).click()
+  ]);
+  const metadata = metadataExportSchema.parse(JSON.parse(await readFile(await metadataDownload.path(), "utf8")) as unknown);
+  expect(metadataDownload.suggestedFilename()).toBe("groundtruth-burruss-hall-scorched-metadata.json");
+  expect("uri" in metadata.scene.evidence[0]).toBe(false);
+  expect(metadata.scene.scenario.activeMode).toBe("scorched");
+  expect(metadata.export.generated_scenario).toBe(true);
+  expect(metadata.export.scenario_provenance.claim).toBe("simulated");
 });
 
 const screenshotViewports = [
