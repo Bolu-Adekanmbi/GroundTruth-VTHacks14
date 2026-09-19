@@ -26,6 +26,25 @@ test("switches curated samples and updates GIS footprint metadata", async ({ pag
   await expect(page.getByText("curated footprint · 91m x 49m")).toBeVisible();
 });
 
+test("manually corrects footprint geometry and facade orientation", async ({ page }) => {
+  await page.goto("/");
+  const output = page.getByRole("complementary", { name: "Evidence and output" });
+
+  await page.getByLabel("Footprint width meters").fill("70");
+  await page.getByLabel("Footprint depth meters").fill("35");
+  await page.getByLabel("Footprint bearing degrees").fill("22");
+  await page.getByLabel("Front facade bearing degrees").fill("135");
+
+  await expect(output.getByText("Manual Rectangle")).toBeVisible();
+  await expect(output.getByText("22 deg")).toBeVisible();
+  await expect(output.getByText("135 deg")).toBeVisible();
+
+  await page.getByRole("button", { name: "Nudge east" }).click();
+
+  await expect(output.getByText("Manual Corrected")).toBeVisible();
+  await expect(page.getByText(/manual-corrected footprint/)).toBeVisible();
+});
+
 const screenshotViewports = [
   { name: "desktop-1440x900", width: 1440, height: 900 },
   { name: "laptop-1280x720", width: 1280, height: 720 },
@@ -33,7 +52,7 @@ const screenshotViewports = [
 ];
 
 for (const viewport of screenshotViewports) {
-  test(`captures Phase 5 screenshot at ${viewport.name}`, async ({ page }) => {
+  test(`captures Phase 6 screenshot at ${viewport.name}`, async ({ page }) => {
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
     await page.goto("/");
 
@@ -44,7 +63,7 @@ for (const viewport of screenshotViewports) {
     await expect(page.locator("body")).toHaveJSProperty("scrollWidth", viewport.width);
     await page.screenshot({
       fullPage: true,
-      path: `test-results/phase-5-${viewport.name}.png`
+      path: `test-results/phase-6-${viewport.name}.png`
     });
   });
 }

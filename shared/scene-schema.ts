@@ -90,7 +90,7 @@ export const assumptionSchema = z.object({
 export const provenanceRecordSchema = z.object({
   id: z.string().min(1),
   target: z.string().min(1),
-  source: z.enum(["curated", "photo-attribution", "manual", "rule"]),
+  source: z.enum(["curated", "photo-attribution", "manual", "rule", "geocoder", "osm"]),
   claim: evidenceClaimSchema,
   label: z.string().min(1),
   evidenceIds: z.array(z.string())
@@ -127,10 +127,17 @@ export const sceneProjectSchema = z.object({
   }),
   footprint: z.object({
     feature: polygonFeatureSchema,
-    source: z.enum(["curated", "osm", "manual-rectangle"]),
+    source: z.enum(["curated", "osm", "manual-rectangle", "manual-corrected"]),
     widthM: z.number().positive(),
     depthM: z.number().positive(),
-    bearingDeg: z.number().min(0).lt(360)
+    bearingDeg: z.number().min(0).lt(360),
+    facadeOrientation: z
+      .object({
+        frontBearingDeg: z.number().min(0).lt(360).optional(),
+        viewpointBearingDeg: z.number().min(0).lt(360).optional(),
+        note: z.string().min(1).optional()
+      })
+      .optional()
   }),
   evidence: z.array(evidencePhotoSchema).min(1),
   building: buildingTraitsSchema,

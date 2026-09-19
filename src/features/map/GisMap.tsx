@@ -21,6 +21,7 @@ import { getConfiguredMapStyle } from "./map-style";
 
 interface GisMapProps {
   project: SceneProject;
+  onSetManualLocation?: (coordinate: LngLat) => void;
 }
 
 const fitPadding = { top: 72, right: 72, bottom: 72, left: 72 };
@@ -31,13 +32,14 @@ const footprintLayerIds = [
   "active-footprint-outline"
 ];
 
-export function GisMap({ project }: GisMapProps) {
+export function GisMap({ project, onSetManualLocation }: GisMapProps) {
   const mapRef = useRef<MapRef | null>(null);
   const [isMapReady, setIsMapReady] = useState(false);
   const [mapWarning, setMapWarning] = useState("");
   const [cursorCoordinate, setCursorCoordinate] = useState<LngLat | null>(null);
   const centroid = useMemo(() => getProjectCentroid(project), [project]);
   const bounds = useMemo(() => getBounds(getOuterRing(project)), [project]);
+  const selectedProjectIdRef = useRef("");
   const style = useMemo(() => getConfiguredMapStyle(), []);
   const displayCoordinate = cursorCoordinate ?? centroid;
 
@@ -94,15 +96,22 @@ export function GisMap({ project }: GisMapProps) {
       }
     });
 
-    map.fitBounds(getBoundsArray(bounds), {
-      padding: fitPadding,
-      duration: 0,
-      maxZoom: 18
-    });
+    if (selectedProjectIdRef.current !== project.id) {
+      selectedProjectIdRef.current = project.id;
+      map.fitBounds(getBoundsArray(bounds), {
+        padding: fitPadding,
+        duration: 0,
+        maxZoom: 18
+      });
+    }
   }, [bounds, isMapReady, project.footprint.feature, project.id]);
 
   function handleMouseMove(event: MapLayerMouseEvent) {
     setCursorCoordinate([event.lngLat.lng, event.lngLat.lat]);
+  }
+
+  function handleClick(event: MapLayerMouseEvent) {
+    onSetManualLocation?.([event.lngLat.lng, event.lngLat.lat]);
   }
 
   return (
@@ -125,6 +134,7 @@ export function GisMap({ project }: GisMapProps) {
           setMapWarning("Basemap tiles are unavailable; footprint and GIS state remain visible.");
         }}
         onLoad={() => setIsMapReady(true)}
+        onClick={handleClick}
         onMouseMove={handleMouseMove}
         reuseMaps
       >

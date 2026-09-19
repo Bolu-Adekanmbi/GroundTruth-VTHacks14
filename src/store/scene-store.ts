@@ -6,6 +6,16 @@ import {
   type SceneMode,
   type SceneProject
 } from "../../shared/scene-schema";
+import {
+  createRectangleFootprint,
+  getApproximateDimensionsM,
+  getProjectCentroid,
+  normalizeBearing,
+  rotateRingAroundCentroid,
+  scaleRingAroundCentroid,
+  translateRingMeters,
+  type LngLat
+} from "../../shared/geo";
 import { deriveProjectTitle, validateEvidenceFiles } from "../features/capture/evidence-workflow";
 
 export type GenerationStepStatus = "idle" | "complete" | "pending" | "warning";
@@ -33,7 +43,13 @@ interface SceneStore {
   addEvidenceFiles: (files: File[]) => void;
   removeEvidencePhoto: (id: string) => void;
   selectEvidencePhoto: (id: string) => void;
-  generateScene: () => void;
+  generateScene: () => Promise<void>;
+  setManualLocation: (coordinate: LngLat) => void;
+  updateManualFootprint: (widthM: number, depthM: number, bearingDeg: number) => void;
+  nudgeFootprint: (eastM: number, northM: number) => void;
+  rotateFootprint: (degrees: number) => void;
+  scaleFootprint: (scale: number) => void;
+  setFacadeOrientation: (frontBearingDeg: number, viewpointBearingDeg: number) => void;
   resetSession: () => void;
   disposeCustomUploads: () => void;
 }
@@ -106,6 +122,13 @@ function createUploadEvidence(file: File, id: string, index: number): EvidencePh
 function buildCustomProject(addressDraft: string, evidence: EvidencePhoto[]): SceneProject {
   const title = deriveProjectTitle(addressDraft);
   const address = title === "Untitled field scene" ? "Address not set" : title;
+  const center: LngLat = [0, 0];
+  const footprintRing = createRectangleFootprint({
+    center,
+    widthM: 30,
+    depthM: 20,
+    bearingDeg: 0
+  });
 
   return sceneProjectSchema.parse({
     schemaVersion: 1,
@@ -123,15 +146,7 @@ function buildCustomProject(addressDraft: string, evidence: EvidencePhoto[]): Sc
         type: "Feature",
         geometry: {
           type: "Polygon",
-          coordinates: [
-            [
-              [-0.00012, -0.00008],
-              [0.00012, -0.00008],
-              [0.00012, 0.00008],
-              [-0.00012, 0.00008],
-              [-0.00012, -0.00008]
-            ]
-          ]
+          coordinates: [footprintRing]
         },
         properties: {
           scene_id: "custom-session",
@@ -141,7 +156,10 @@ function buildCustomProject(addressDraft: string, evidence: EvidencePhoto[]): Sc
       source: "manual-rectangle",
       widthM: 30,
       depthM: 20,
-      bearingDeg: 0
+      bearingDeg: 0,
+      facadeOrientation: {
+        note: "One-photo custom evidence may represent only the visible facade; mark front direction before 3D generation."
+      }
     },
     evidence,
     building: {
@@ -184,7 +202,7 @@ function buildCustomProject(addressDraft: string, evidence: EvidencePhoto[]): Sc
         claim: "Custom location and footprint are pending GIS resolution.",
         affectedPath: "location",
         evidenceClaim: "unknown",
-        rationale: "Live geocoding and map placement are introduced in later phases."
+        rationale: "Use live GIS when configured or place the footprint manually."
       },
       {
         id: "custom-assumption-traits",
@@ -212,6 +230,252 @@ function buildCustomProject(addressDraft: string, evidence: EvidencePhoto[]): Sc
         evidenceIds: evidence.map((photo) => photo.id)
       }
     ]
+  });
+}
+
+function withFootprint(
+  project: SceneProject,
+  ring: LngLat[],
+  source: SceneProject["footprint"]["source"],
+  bearingDeg = project.footprint.bearingDeg
+) {
+  const dimensions = getApproximateDimensionsM(ring);
+
+  return sceneProjectSchema.parse({
+    ...project,
+    updatedAt: new Date().toISOString(),
+    footprint: {
+      ...project.footprint,
+      feature: {
+        ...project.footprint.feature,
+        geometry: {
+          type: "Polygon",
+          coordinates: [ring]
+        },
+        properties: {
+          ...project.footprint.feature.properties,
+          source
+        }
+      },
+      source,
+      widthM: Math.max(1, Math.round(dimensions.widthM)),
+      depthM: Math.max(1, Math.round(dimensions.depthM)),
+      bearingDeg: normalizeBearing(bearingDeg)
+    },
+    confidence: {
+      ...project.confidence,
+      footprint: source === "manual-corrected" ? 0.42 : project.confidence.footprint
+    },
+    assumptions: ensureAssumption(project.assumptions, {
+      id: "manual-footprint-correction",
+      claim: "Footprint placement or shape has been manually corrected and should be reviewed.",
+      affectedPath: "footprint",
+      evidenceClaim: "assumed",
+      rationale: "Manual corrections preserve demo continuity when live GIS data is unavailable or misaligned."
+    }),
+    provenance: ensureProvenance(project.provenance, {
+      id: "manual-prov-footprint",
+      target: "footprint",
+      source: "manual",
+      claim: "assumed",
+      label: "Manual footprint correction",
+      evidenceIds: project.evidence.map((photo) => photo.id)
+    })
+  });
+}
+
+function ensureAssumption(
+  assumptions: SceneProject["assumptions"],
+  assumption: SceneProject["assumptions"][number]
+) {
+  return assumptions.some((item) => item.id === assumption.id)
+    ? assumptions
+    : [...assumptions, assumption];
+}
+
+function ensureProvenance(
+  provenance: SceneProject["provenance"],
+  record: SceneProject["provenance"][number]
+) {
+  return provenance.some((item) => item.id === record.id) ? provenance : [...provenance, record];
+}
+
+async function resolveCustomScene(project: SceneProject, addressDraft: string) {
+  const warnings: string[] = [];
+  let nextProject = project;
+  let locationResolved = false;
+  let footprintResolved = false;
+
+  try {
+    const geocodeResponse = await fetch("/api/geocode", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ address: addressDraft })
+    });
+
+    if (geocodeResponse.ok) {
+      const payload = (await geocodeResponse.json()) as {
+        data: {
+          address: string;
+          longitude: number;
+          latitude: number;
+          source: SceneProject["location"]["source"];
+          confidence: number;
+        };
+        warnings: string[];
+      };
+      warnings.push(...payload.warnings);
+      nextProject = sceneProjectSchema.parse({
+        ...nextProject,
+        name: deriveProjectTitle(payload.data.address),
+        location: {
+          address: payload.data.address,
+          longitude: payload.data.longitude,
+          latitude: payload.data.latitude,
+          source: payload.data.source
+        },
+        confidence: {
+          ...nextProject.confidence,
+          location: payload.data.confidence
+        },
+        provenance: ensureProvenance(nextProject.provenance, {
+          id: "custom-prov-location",
+          target: "location",
+          source: payload.data.source === "geocoder" ? "geocoder" : "manual",
+          claim: payload.data.source === "geocoder" ? "inferred" : "assumed",
+          label: payload.data.source === "geocoder" ? "Live geocoder result" : "Manual location",
+          evidenceIds: nextProject.evidence.map((photo) => photo.id)
+        })
+      });
+      locationResolved = true;
+    } else {
+      const payload = (await geocodeResponse.json()) as { error?: { message?: string } };
+      warnings.push(payload.error?.message ?? "Geocoding unavailable; manual placement required.");
+    }
+  } catch {
+    warnings.push("Geocoding request failed; manual placement required.");
+  }
+
+  try {
+    const footprintResponse = await fetch("/api/footprint", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        address: nextProject.location.address,
+        longitude: nextProject.location.longitude,
+        latitude: nextProject.location.latitude,
+        widthM: nextProject.footprint.widthM,
+        depthM: nextProject.footprint.depthM,
+        bearingDeg: nextProject.footprint.bearingDeg
+      })
+    });
+
+    if (footprintResponse.ok) {
+      const payload = (await footprintResponse.json()) as {
+        data: Pick<SceneProject["footprint"], "feature" | "source" | "widthM" | "depthM" | "bearingDeg"> & {
+          confidence: number;
+        };
+        warnings: string[];
+      };
+      warnings.push(...payload.warnings);
+      nextProject = sceneProjectSchema.parse({
+        ...nextProject,
+        footprint: {
+          ...nextProject.footprint,
+          feature: payload.data.feature,
+          source: payload.data.source,
+          widthM: payload.data.widthM,
+          depthM: payload.data.depthM,
+          bearingDeg: payload.data.bearingDeg
+        },
+        confidence: {
+          ...nextProject.confidence,
+          footprint: payload.data.confidence
+        },
+        assumptions: payload.data.source === "manual-rectangle"
+          ? ensureAssumption(nextProject.assumptions, {
+              id: "custom-assumption-manual-footprint",
+              claim: "No authoritative footprint was found; an editable manual rectangle is active.",
+              affectedPath: "footprint",
+              evidenceClaim: "assumed",
+              rationale: "Manual footprint controls keep the scene usable without a live GIS dependency."
+            })
+          : nextProject.assumptions,
+        provenance: ensureProvenance(nextProject.provenance, {
+          id: "custom-prov-footprint",
+          target: "footprint",
+          source: payload.data.source === "osm" ? "osm" : "manual",
+          claim: payload.data.source === "osm" ? "inferred" : "assumed",
+          label: payload.data.source === "osm" ? "OpenStreetMap building geometry" : "Manual footprint fallback",
+          evidenceIds: nextProject.evidence.map((photo) => photo.id)
+        })
+      });
+      footprintResolved = true;
+    }
+  } catch {
+    warnings.push("Footprint request failed; manual rectangle remains active.");
+  }
+
+  const steps: GenerationStep[] = [
+    {
+      id: "validate-evidence",
+      label: "Validate evidence",
+      status: "complete",
+      detail: `${nextProject.evidence.length} uploaded photo${nextProject.evidence.length === 1 ? "" : "s"} accepted`
+    },
+    {
+      id: "resolve-location",
+      label: "Resolve location",
+      status: locationResolved ? "complete" : "warning",
+      detail: locationResolved ? `Resolved from ${nextProject.location.source}` : "Manual placement required"
+    },
+    {
+      id: "prepare-footprint",
+      label: "Prepare footprint",
+      status: footprintResolved ? "complete" : "warning",
+      detail: `Using ${nextProject.footprint.source} geometry`
+    },
+    {
+      id: "prepare-traits",
+      label: "Prepare building traits",
+      status: "warning",
+      detail: "Best-effort defaults; review required"
+    }
+  ];
+
+  return {
+    project: sceneProjectSchema.parse({
+      ...nextProject,
+      assumptions: warnings.reduce(
+        (assumptions, warning, index) =>
+          ensureAssumption(assumptions, {
+            id: `gis-warning-${index + 1}`,
+            claim: warning,
+            affectedPath: "location",
+            evidenceClaim: "unknown",
+            rationale: "GIS adapters preserve recoverable warnings for user review."
+          }),
+        nextProject.assumptions
+      )
+    }),
+    steps,
+    message: locationResolved || footprintResolved
+      ? "Custom GIS placement prepared. Review source/confidence and correct the footprint if needed."
+      : "Custom input validated. Use manual GIS controls to place and correct the footprint."
+  };
+}
+
+function markManualGisReady(steps: GenerationStep[]) {
+  return steps.map((step) => {
+    if (step.id === "resolve-location") {
+      return { ...step, status: "complete" as const, detail: "Manual location set" };
+    }
+
+    if (step.id === "prepare-footprint") {
+      return { ...step, status: "complete" as const, detail: "Manual footprint correction active" };
+    }
+
+    return step;
   });
 }
 
@@ -373,31 +637,82 @@ export const useSceneStore = create<SceneStore>((set) => ({
       return exists ? { selectedEvidenceId: id } : state;
     });
   },
-  generateScene: () => {
-    set((state) => {
-      const isCustom = state.activeProject.id === "custom-session";
-      const hasAddress = deriveProjectTitle(state.addressDraft) !== "Untitled field scene";
-      const generationSteps: GenerationStep[] = isCustom
+  generateScene: async () => {
+    const state = useSceneStore.getState();
+    const isCustom = state.activeProject.id === "custom-session";
+    const hasAddress = deriveProjectTitle(state.addressDraft) !== "Untitled field scene";
+
+    if (isCustom && hasAddress) {
+      const generationSteps: GenerationStep[] = [
+        {
+          id: "validate-evidence",
+          label: "Validate evidence",
+          status: "complete",
+          detail: `${state.activeProject.evidence.length} uploaded photo${
+            state.activeProject.evidence.length === 1 ? "" : "s"
+          } accepted`
+        },
+        {
+          id: "resolve-location",
+          label: "Resolve location",
+          status: "pending",
+          detail: "Resolving address through curated/live GIS adapters"
+        },
+        {
+          id: "prepare-footprint",
+          label: "Prepare footprint",
+          status: "pending",
+          detail: "Preparing OSM or manual footprint"
+        },
+        {
+          id: "prepare-traits",
+          label: "Prepare building traits",
+          status: "warning",
+          detail: "Best-effort defaults; review required"
+        }
+      ];
+
+      set({
+        generationSteps,
+        generationMessage: "Resolving custom scene GIS placement."
+      });
+
+      const resolved = await resolveCustomScene(state.activeProject, state.addressDraft);
+
+      set({
+        activeProject: resolved.project,
+        addressDraft: resolved.project.location.address,
+        generationSteps: resolved.steps,
+        generationMessage: resolved.message
+      });
+      return;
+    }
+
+    set((current) => {
+      const isCurrentCustom = current.activeProject.id === "custom-session";
+      const currentHasAddress =
+        deriveProjectTitle(current.addressDraft) !== "Untitled field scene";
+      const generationSteps: GenerationStep[] = isCurrentCustom
         ? [
             {
               id: "validate-evidence",
               label: "Validate evidence",
               status: "complete",
-              detail: `${state.activeProject.evidence.length} uploaded photo${
-                state.activeProject.evidence.length === 1 ? "" : "s"
+              detail: `${current.activeProject.evidence.length} uploaded photo${
+                current.activeProject.evidence.length === 1 ? "" : "s"
               } accepted`
             },
             {
               id: "resolve-location",
               label: "Resolve location",
-              status: "pending",
-              detail: hasAddress ? "Address captured; geocoding begins in Phase 6" : "Address required"
+              status: currentHasAddress ? "warning" : "pending",
+              detail: currentHasAddress ? "Use manual map placement if geocoding is unavailable" : "Address required"
             },
             {
               id: "prepare-footprint",
               label: "Prepare footprint",
-              status: "pending",
-              detail: "Manual and live footprints begin in Phase 6"
+              status: "warning",
+              detail: "Editable manual footprint is available"
             },
             {
               id: "prepare-traits",
@@ -435,11 +750,132 @@ export const useSceneStore = create<SceneStore>((set) => ({
 
       return {
         generationSteps,
-        generationMessage: isCustom
-          ? "Custom input validated. GIS placement and footprint work remain pending."
+        generationMessage: isCurrentCustom
+          ? "Custom input validated. Use manual GIS controls to place and correct the footprint."
           : "Curated scene generated from seeded evidence, location, footprint, and traits."
       };
     });
+  },
+  setManualLocation: (coordinate) => {
+    set((state) => {
+      const ring = createRectangleFootprint({
+        center: coordinate,
+        widthM: state.activeProject.footprint.widthM,
+        depthM: state.activeProject.footprint.depthM,
+        bearingDeg: state.activeProject.footprint.bearingDeg
+      });
+      const activeProject = sceneProjectSchema.parse({
+        ...withFootprint(state.activeProject, ring, "manual-corrected"),
+        location: {
+          ...state.activeProject.location,
+          longitude: coordinate[0],
+          latitude: coordinate[1],
+          source: "manual"
+        },
+        confidence: {
+          ...state.activeProject.confidence,
+          location: 0.45,
+          footprint: 0.42
+        }
+      });
+
+      return {
+        activeProject,
+        generationMessage: "Manual location placed. Adjust the footprint until it matches the map.",
+        generationSteps: markManualGisReady(state.generationSteps)
+      };
+    });
+  },
+  updateManualFootprint: (widthM, depthM, bearingDeg) => {
+    set((state) => {
+      const center = getProjectCentroid(state.activeProject);
+      const ring = createRectangleFootprint({ center, widthM, depthM, bearingDeg });
+      const activeProject = withFootprint(state.activeProject, ring, "manual-rectangle", bearingDeg);
+
+      return {
+        activeProject,
+        generationMessage: "Manual footprint dimensions updated.",
+        generationSteps: markManualGisReady(state.generationSteps)
+      };
+    });
+  },
+  nudgeFootprint: (eastM, northM) => {
+    set((state) => {
+      const ring = translateRingMeters(
+        state.activeProject.footprint.feature.geometry.coordinates[0],
+        eastM,
+        northM
+      );
+      const activeProject = withFootprint(state.activeProject, ring, "manual-corrected");
+      const centroid = getProjectCentroid(activeProject);
+
+      return {
+        activeProject: sceneProjectSchema.parse({
+          ...activeProject,
+          location: {
+            ...activeProject.location,
+            longitude: centroid[0],
+            latitude: centroid[1],
+            source: "manual"
+          }
+        }),
+        generationMessage: "Footprint nudged into manual correction state.",
+        generationSteps: markManualGisReady(state.generationSteps)
+      };
+    });
+  },
+  rotateFootprint: (degrees) => {
+    set((state) => {
+      const ring = rotateRingAroundCentroid(
+        state.activeProject.footprint.feature.geometry.coordinates[0],
+        degrees
+      );
+      const bearingDeg = normalizeBearing(state.activeProject.footprint.bearingDeg + degrees);
+
+      return {
+        activeProject: withFootprint(state.activeProject, ring, "manual-corrected", bearingDeg),
+        generationMessage: "Footprint rotated into manual correction state.",
+        generationSteps: markManualGisReady(state.generationSteps)
+      };
+    });
+  },
+  scaleFootprint: (scale) => {
+    set((state) => {
+      const ring = scaleRingAroundCentroid(
+        state.activeProject.footprint.feature.geometry.coordinates[0],
+        scale
+      );
+
+      return {
+        activeProject: withFootprint(state.activeProject, ring, "manual-corrected"),
+        generationMessage: "Footprint scaled into manual correction state.",
+        generationSteps: markManualGisReady(state.generationSteps)
+      };
+    });
+  },
+  setFacadeOrientation: (frontBearingDeg, viewpointBearingDeg) => {
+    set((state) => ({
+      activeProject: sceneProjectSchema.parse({
+        ...state.activeProject,
+        updatedAt: new Date().toISOString(),
+        footprint: {
+          ...state.activeProject.footprint,
+          facadeOrientation: {
+            frontBearingDeg: normalizeBearing(frontBearingDeg),
+            viewpointBearingDeg: normalizeBearing(viewpointBearingDeg),
+            note: "Source evidence marks the visible/front facade for later 3D generation."
+          }
+        },
+        assumptions: ensureAssumption(state.activeProject.assumptions, {
+          id: "facade-orientation-one-photo",
+          claim: "Only the visible facade is represented by the current source evidence.",
+          affectedPath: "footprint.facadeOrientation",
+          evidenceClaim: "assumed",
+          rationale: "Perspective/photo direction is tracked separately from the plan-view footprint."
+        })
+      }),
+      generationMessage: "Facade orientation marked for later 3D generation."
+    }));
   },
   resetSession: () => {
     revokeCustomObjectUrls();

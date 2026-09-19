@@ -14,6 +14,13 @@ export interface LocalMeterPoint {
   z: number;
 }
 
+export interface FootprintRectangleInput {
+  center: LngLat;
+  widthM: number;
+  depthM: number;
+  bearingDeg: number;
+}
+
 const EARTH_RADIUS_M = 6_371_008.8;
 const METERS_PER_DEGREE_LATITUDE = 111_320;
 
@@ -97,6 +104,66 @@ export function toLocalMeters(coordinates: LngLat[], origin: LngLat): LocalMeter
   }));
 }
 
+export function fromLocalMeters(points: LocalMeterPoint[], origin: LngLat): LngLat[] {
+  const longitudeScale = getLongitudeScale(origin[1]);
+
+  return points.map((point) => [
+    origin[0] + point.x / longitudeScale,
+    origin[1] + point.z / METERS_PER_DEGREE_LATITUDE
+  ]);
+}
+
+export function moveCoordinateMeters(coordinate: LngLat, eastM: number, northM: number): LngLat {
+  return fromLocalMeters([{ x: eastM, z: northM }], coordinate)[0];
+}
+
+export function createRectangleFootprint({
+  center,
+  widthM,
+  depthM,
+  bearingDeg
+}: FootprintRectangleInput): LngLat[] {
+  const halfWidth = widthM / 2;
+  const halfDepth = depthM / 2;
+  const corners: LocalMeterPoint[] = [
+    { x: -halfWidth, z: halfDepth },
+    { x: halfWidth, z: halfDepth },
+    { x: halfWidth, z: -halfDepth },
+    { x: -halfWidth, z: -halfDepth }
+  ].map((point) => rotateLocalPoint(point, bearingDeg));
+  const ring = fromLocalMeters(corners, center);
+
+  return [...ring, ring[0]];
+}
+
+export function translateRingMeters(coordinates: LngLat[], eastM: number, northM: number): LngLat[] {
+  return coordinates.map((coordinate) => moveCoordinateMeters(coordinate, eastM, northM));
+}
+
+export function rotateRingAroundCentroid(coordinates: LngLat[], degrees: number): LngLat[] {
+  const centroid = getPolygonCentroid(coordinates);
+  const rotated = stripClosingCoordinate(coordinates)
+    .map((coordinate) => toLocalMeters([coordinate], centroid)[0])
+    .map((point) => rotateLocalPoint(point, degrees));
+  const ring = fromLocalMeters(rotated, centroid);
+
+  return [...ring, ring[0]];
+}
+
+export function scaleRingAroundCentroid(
+  coordinates: LngLat[],
+  scaleX: number,
+  scaleZ = scaleX
+): LngLat[] {
+  const centroid = getPolygonCentroid(coordinates);
+  const scaled = stripClosingCoordinate(coordinates)
+    .map((coordinate) => toLocalMeters([coordinate], centroid)[0])
+    .map((point) => ({ x: point.x * scaleX, z: point.z * scaleZ }));
+  const ring = fromLocalMeters(scaled, centroid);
+
+  return [...ring, ring[0]];
+}
+
 export function formatCoordinate([longitude, latitude]: LngLat, precision = 5) {
   return `${latitude.toFixed(precision)}, ${longitude.toFixed(precision)}`;
 }
@@ -126,6 +193,21 @@ function distanceM(start: LngLat, end: LngLat) {
     Math.cos(startLatitude) * Math.cos(endLatitude) * Math.sin(deltaLongitude / 2) ** 2;
 
   return 2 * EARTH_RADIUS_M * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function getLongitudeScale(latitude: number) {
+  return Math.cos(toRadians(latitude)) * METERS_PER_DEGREE_LATITUDE;
+}
+
+function rotateLocalPoint(point: LocalMeterPoint, degrees: number): LocalMeterPoint {
+  const radians = toRadians(degrees);
+  const cos = Math.cos(radians);
+  const sin = Math.sin(radians);
+
+  return {
+    x: point.x * cos - point.z * sin,
+    z: point.x * sin + point.z * cos
+  };
 }
 
 function toRadians(degrees: number) {

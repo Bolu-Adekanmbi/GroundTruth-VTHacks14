@@ -17,10 +17,17 @@ import {
   LocateFixed,
   MapPin,
   Maximize2,
+  MoveDown,
+  MoveLeft,
+  MoveRight,
+  MoveUp,
   RotateCcw,
+  RotateCw,
   Trash2,
   Upload,
-  X
+  X,
+  ZoomIn,
+  ZoomOut
 } from "lucide-react";
 import type { BuildingTraits, SceneMode } from "../../shared/scene-schema";
 import { Button } from "../components/ui/Button";
@@ -87,6 +94,12 @@ export function App() {
   const removeEvidencePhoto = useSceneStore((state) => state.removeEvidencePhoto);
   const selectEvidencePhoto = useSceneStore((state) => state.selectEvidencePhoto);
   const generateScene = useSceneStore((state) => state.generateScene);
+  const setManualLocation = useSceneStore((state) => state.setManualLocation);
+  const updateManualFootprint = useSceneStore((state) => state.updateManualFootprint);
+  const nudgeFootprint = useSceneStore((state) => state.nudgeFootprint);
+  const rotateFootprint = useSceneStore((state) => state.rotateFootprint);
+  const scaleFootprint = useSceneStore((state) => state.scaleFootprint);
+  const setFacadeOrientation = useSceneStore((state) => state.setFacadeOrientation);
   const resetSession = useSceneStore((state) => state.resetSession);
   const disposeCustomUploads = useSceneStore((state) => state.disposeCustomUploads);
   const [viewportMode, setViewportMode] = useState<ViewportMode>("map");
@@ -102,6 +115,7 @@ export function App() {
     ? "Best-effort defaults; review required"
     : "Seeded from curated example";
   const footprintCentroid = getProjectCentroid(activeProject);
+  const facadeOrientation = activeProject.footprint.facadeOrientation;
 
   useEffect(() => disposeCustomUploads, [disposeCustomUploads]);
 
@@ -263,7 +277,13 @@ export function App() {
                 ))}
               </div>
               <div className="capture-actions">
-                <Button icon={<Layers aria-hidden="true" />} onClick={generateScene} variant="primary">
+                <Button
+                  icon={<Layers aria-hidden="true" />}
+                  onClick={() => {
+                    void generateScene();
+                  }}
+                  variant="primary"
+                >
                   Generate scene
                 </Button>
                 <Button icon={<Trash2 aria-hidden="true" />} onClick={handleResetSession}>
@@ -280,6 +300,132 @@ export function App() {
                     </li>
                   ))}
                 </ol>
+              </div>
+              <div className="manual-gis-panel" aria-label="Manual GIS correction controls">
+                <div className="manual-gis-panel__header">
+                  <strong>Manual GIS</strong>
+                  <span>{formatLabel(activeProject.footprint.source)}</span>
+                </div>
+                <div className="manual-gis-grid">
+                  <FieldWrapper label="Latitude">
+                    <input
+                      aria-label="Manual latitude"
+                      inputMode="decimal"
+                      onChange={(event) =>
+                        setManualLocation([
+                          activeProject.location.longitude,
+                          Number(event.currentTarget.value)
+                        ])
+                      }
+                      type="number"
+                      value={Number(activeProject.location.latitude.toFixed(6))}
+                    />
+                  </FieldWrapper>
+                  <FieldWrapper label="Longitude">
+                    <input
+                      aria-label="Manual longitude"
+                      inputMode="decimal"
+                      onChange={(event) =>
+                        setManualLocation([
+                          Number(event.currentTarget.value),
+                          activeProject.location.latitude
+                        ])
+                      }
+                      type="number"
+                      value={Number(activeProject.location.longitude.toFixed(6))}
+                    />
+                  </FieldWrapper>
+                  <FieldWrapper label="Width m">
+                    <input
+                      aria-label="Footprint width meters"
+                      min="1"
+                      onChange={(event) =>
+                        updateManualFootprint(
+                          Number(event.currentTarget.value),
+                          activeProject.footprint.depthM,
+                          activeProject.footprint.bearingDeg
+                        )
+                      }
+                      type="number"
+                      value={activeProject.footprint.widthM}
+                    />
+                  </FieldWrapper>
+                  <FieldWrapper label="Depth m">
+                    <input
+                      aria-label="Footprint depth meters"
+                      min="1"
+                      onChange={(event) =>
+                        updateManualFootprint(
+                          activeProject.footprint.widthM,
+                          Number(event.currentTarget.value),
+                          activeProject.footprint.bearingDeg
+                        )
+                      }
+                      type="number"
+                      value={activeProject.footprint.depthM}
+                    />
+                  </FieldWrapper>
+                  <FieldWrapper label="Bearing">
+                    <input
+                      aria-label="Footprint bearing degrees"
+                      max="359"
+                      min="0"
+                      onChange={(event) =>
+                        updateManualFootprint(
+                          activeProject.footprint.widthM,
+                          activeProject.footprint.depthM,
+                          Number(event.currentTarget.value)
+                        )
+                      }
+                      type="number"
+                      value={Math.round(activeProject.footprint.bearingDeg)}
+                    />
+                  </FieldWrapper>
+                  <FieldWrapper label="Front">
+                    <input
+                      aria-label="Front facade bearing degrees"
+                      max="359"
+                      min="0"
+                      onChange={(event) =>
+                        setFacadeOrientation(
+                          Number(event.currentTarget.value),
+                          facadeOrientation?.viewpointBearingDeg ?? activeProject.footprint.bearingDeg
+                        )
+                      }
+                      type="number"
+                      value={Math.round(
+                        facadeOrientation?.frontBearingDeg ?? activeProject.footprint.bearingDeg
+                      )}
+                    />
+                  </FieldWrapper>
+                </div>
+                <div className="manual-gis-actions" aria-label="Nudge footprint">
+                  <IconButton label="Nudge west" onClick={() => nudgeFootprint(-2, 0)} tooltip="Nudge west">
+                    <MoveLeft aria-hidden="true" />
+                  </IconButton>
+                  <IconButton label="Nudge north" onClick={() => nudgeFootprint(0, 2)} tooltip="Nudge north">
+                    <MoveUp aria-hidden="true" />
+                  </IconButton>
+                  <IconButton label="Nudge south" onClick={() => nudgeFootprint(0, -2)} tooltip="Nudge south">
+                    <MoveDown aria-hidden="true" />
+                  </IconButton>
+                  <IconButton label="Nudge east" onClick={() => nudgeFootprint(2, 0)} tooltip="Nudge east">
+                    <MoveRight aria-hidden="true" />
+                  </IconButton>
+                  <IconButton label="Rotate footprint" onClick={() => rotateFootprint(5)} tooltip="Rotate 5 degrees">
+                    <RotateCw aria-hidden="true" />
+                  </IconButton>
+                  <IconButton label="Scale footprint down" onClick={() => scaleFootprint(0.95)} tooltip="Scale down">
+                    <ZoomOut aria-hidden="true" />
+                  </IconButton>
+                  <IconButton label="Scale footprint up" onClick={() => scaleFootprint(1.05)} tooltip="Scale up">
+                    <ZoomIn aria-hidden="true" />
+                  </IconButton>
+                </div>
+                <p>
+                  Click the map to set a manual center. Keep photo-facing facade direction separate
+                  from north.
+                </p>
               </div>
               <p className="capture-note">
                 {isCustomScene
@@ -335,7 +481,7 @@ export function App() {
                 <code>EPSG:4326</code>
               </div>
               <Suspense fallback={<MapLoadingFallback coordinate={footprintCentroid} />}>
-                <GisMap project={activeProject} />
+                <GisMap project={activeProject} onSetManualLocation={setManualLocation} />
               </Suspense>
             </article>
 
@@ -416,6 +562,14 @@ export function App() {
                 <div>
                   <span>Bearing</span>
                   <strong>{Math.round(activeProject.footprint.bearingDeg)} deg</strong>
+                </div>
+                <div>
+                  <span>Front facade</span>
+                  <strong>
+                    {facadeOrientation?.frontBearingDeg === undefined
+                      ? "Unmarked"
+                      : `${Math.round(facadeOrientation.frontBearingDeg)} deg`}
+                  </strong>
                 </div>
                 <div>
                   <span>Footprint confidence</span>

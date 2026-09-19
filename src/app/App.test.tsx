@@ -74,8 +74,8 @@ describe("App", () => {
 
     await user.click(screen.getByRole("button", { name: "Generate scene" }));
 
-    expect(screen.getByText("Address captured; geocoding begins in Phase 6")).toBeInTheDocument();
-    expect(screen.getByText("Manual and live footprints begin in Phase 6")).toBeInTheDocument();
+    expect(await screen.findByText("Manual placement required")).toBeInTheDocument();
+    expect(screen.getByText("Using manual-rectangle geometry")).toBeInTheDocument();
   });
 
   it("removes custom evidence and restores curated state when switching samples", async () => {

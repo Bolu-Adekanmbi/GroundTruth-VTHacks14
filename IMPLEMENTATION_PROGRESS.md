@@ -116,3 +116,26 @@ This log records completed implementation phases. It does not authorize starting
   - `npm install` still reports 2 moderate transitive audit findings; no forced dependency upgrade was applied in Phase 5.
   - Playwright/localhost checks required running outside the sandbox with approval.
 - Suggested commit message: `phase-5: add deterministic GIS map`
+
+## Phase 6 - Geocoding, Footprint Fallbacks, And Manual Placement
+
+- Completion date: 2026-09-19
+- Change summary: Added GIS adapter contracts and `/api/geocode` plus `/api/footprint` routes with curated-first resolution, optional opt-in Nominatim/Overpass live lookups, request timeouts, session caching, identifying headers, and deterministic manual rectangle fallback. Added canonical footprint transform utilities for rectangle generation, nudge, rotate, and scale. Added manual GIS controls for latitude/longitude, width/depth, bearing, nudge, rotate, scale, click-to-place map interaction, source/confidence updates, `manual-corrected` state, and facade/viewpoint orientation metadata for later 3D generation.
+- Automated checks and results:
+  - `npm run typecheck` - passed
+  - `npm run lint` - passed
+  - `npm test` - passed, 32 tests
+  - `npm run build` - passed
+  - `npm run test:e2e` - passed, 6 Playwright tests
+- Manual checks performed:
+  - Inspected `test-results/phase-6-desktop-1440x900.png`; confirmed manual GIS controls fit in the capture rail, the footprint remains visible on the map, and output metadata exposes source, centroid, dimensions, bearing, front facade, and confidence.
+  - Inspected `test-results/phase-6-mobile-390x844.png`; confirmed controls, map, output metadata, and provenance stack without horizontal scroll.
+  - Verified the e2e manual-correction flow updates source state from `Manual Rectangle` to `Manual Corrected` and preserves facade bearing metadata.
+  - Verified curated addresses remain deterministic/offline in adapter tests and unknown addresses fall back to manual placement when live GIS is disabled.
+- Known limitations or deferred items:
+  - Live GIS calls are disabled unless `GROUNDTRUTH_ENABLE_LIVE_GIS=true`; public provider policies require conservative rate limits, identifying headers, attribution, and caching.
+  - OSM/Overpass geometry parsing is intentionally minimal for the hackathon demo and should be expanded before production use.
+  - Vertex dragging is deferred; the implemented correction surface covers click-to-place, numeric controls, nudge, rotate, and scale.
+  - 3D generation from corrected footprints begins in Phase 7.
+  - Playwright/localhost checks required running outside the sandbox with approval.
+- Suggested commit message: `phase-6: add manual gis correction`

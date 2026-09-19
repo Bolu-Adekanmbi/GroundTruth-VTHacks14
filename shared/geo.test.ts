@@ -1,12 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { demoScenes } from "./demo-scenes.js";
 import {
+  createRectangleFootprint,
   formatCoordinate,
   getApproximateDimensionsM,
   getBounds,
   getOuterRing,
   getProjectCentroid,
+  rotateRingAroundCentroid,
   normalizeBearing,
+  scaleRingAroundCentroid,
+  translateRingMeters,
   toLocalMeters
 } from "./geo.js";
 
@@ -53,4 +57,36 @@ describe("geo utilities", () => {
     expect(normalizeBearing(375)).toBe(15);
     expect(normalizeBearing(720)).toBe(0);
   });
+
+  it("creates and corrects manual footprint rectangles in meters", () => {
+    const center = [-80, 37] satisfies [number, number];
+    const ring = createRectangleFootprint({ center, widthM: 40, depthM: 20, bearingDeg: 0 });
+    const dimensions = getApproximateDimensionsM(ring);
+    const shifted = translateRingMeters(ring, 5, -3);
+    const rotated = rotateRingAroundCentroid(ring, 15);
+    const scaled = scaleRingAroundCentroid(ring, 1.1);
+
+    expect(ring).toHaveLength(5);
+    expect(dimensions.widthM).toBeCloseTo(40, 0);
+    expect(dimensions.depthM).toBeCloseTo(20, 0);
+    expect(getPolygonDeltaMeters(ring, shifted).east).toBeCloseTo(5, 0);
+    expect(rotated[0]).not.toEqual(ring[0]);
+    expect(getApproximateDimensionsM(scaled).widthM).toBeGreaterThan(dimensions.widthM);
+  });
 });
+
+function getPolygonDeltaMeters(start: [number, number][], end: [number, number][]) {
+  const startCentroid = getApproximateCenter(start);
+  const endCentroid = getApproximateCenter(end);
+  const [local] = toLocalMeters([endCentroid], startCentroid);
+
+  return { east: local.x, north: local.z };
+}
+
+function getApproximateCenter(ring: [number, number][]) {
+  const bounds = getBounds(ring);
+  return [(bounds.west + bounds.east) / 2, (bounds.south + bounds.north) / 2] satisfies [
+    number,
+    number
+  ];
+}

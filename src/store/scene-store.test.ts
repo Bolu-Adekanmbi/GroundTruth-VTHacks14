@@ -89,21 +89,25 @@ describe("scene store", () => {
     expect(result.current.activeProject.id).toBe("burruss-hall");
   });
 
-  it("reports truthful generation steps for curated and custom inputs", () => {
+  it("reports truthful generation steps for curated and custom inputs", async () => {
     const { result } = renderHook(() => useSceneStore());
 
-    act(() => result.current.generateScene());
+    await act(async () => {
+      await result.current.generateScene();
+    });
 
     expect(result.current.generationSteps.every((step) => step.status === "complete")).toBe(true);
     expect(result.current.generationSteps[3].detail).toBe("Seeded from curated example");
 
     act(() => result.current.addEvidenceFiles([imageFile("custom.jpg")]));
-    act(() => result.current.generateScene());
+    await act(async () => {
+      await result.current.generateScene();
+    });
 
     expect(result.current.generationSteps.map((step) => step.status)).toEqual([
       "complete",
-      "pending",
-      "pending",
+      "warning",
+      "warning",
       "warning"
     ]);
     expect(result.current.generationSteps[3].detail).toBe("Best-effort defaults; review required");
