@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { type ChangeEvent, type DragEvent, useEffect, useRef, useState } from "react";
 import {
   Activity,
   Box,
@@ -10,7 +10,9 @@ import {
   MapPin,
   Maximize2,
   RotateCcw,
-  Upload
+  Trash2,
+  Upload,
+  X
 } from "lucide-react";
 import type { BuildingTraits, SceneMode } from "../../shared/scene-schema";
 import { Button } from "../components/ui/Button";
@@ -20,6 +22,7 @@ import { SectionHeader } from "../components/ui/SectionHeader";
 import { SegmentedControl } from "../components/ui/SegmentedControl";
 import { StatusIndicator } from "../components/ui/StatusIndicator";
 import { Tooltip } from "../components/ui/Tooltip";
+import { PHOTO_LIMITS } from "../features/capture/evidence-workflow";
 import { selectActiveProject, selectCatalog } from "../store/selectors";
 import { useSceneStore } from "../store/scene-store";
 
@@ -39,15 +42,14 @@ const viewportOptions = [
 const traitRows: Array<{
   key: keyof BuildingTraits;
   label: string;
-  source: "Observed" | "Seeded" | "Assumed";
   format?: (value: BuildingTraits[keyof BuildingTraits]) => string;
 }> = [
-  { key: "buildingType", label: "Building type", source: "Seeded", format: formatLabel },
-  { key: "floors", label: "Floors", source: "Assumed", format: String },
-  { key: "heightM", label: "Height", source: "Assumed", format: (value) => `${String(value)} m` },
-  { key: "material", label: "Material", source: "Observed", format: formatLabel },
-  { key: "roofType", label: "Roof type", source: "Seeded", format: formatLabel },
-  { key: "entrancePosition", label: "Entrance", source: "Assumed", format: formatLabel }
+  { key: "buildingType", label: "Building type", format: formatLabel },
+  { key: "floors", label: "Floors", format: String },
+  { key: "heightM", label: "Height", format: (value) => `${String(value)} m` },
+  { key: "material", label: "Material", format: formatLabel },
+  { key: "roofType", label: "Roof type", format: formatLabel },
+  { key: "entrancePosition", label: "Entrance", format: formatLabel }
 ];
 
 function formatLabel(value: unknown) {
@@ -60,12 +62,66 @@ function formatLabel(value: unknown) {
 export function App() {
   const catalog = useSceneStore(selectCatalog);
   const activeProject = useSceneStore(selectActiveProject);
+  const selectedEvidenceId = useSceneStore((state) => state.selectedEvidenceId);
+  const addressDraft = useSceneStore((state) => state.addressDraft);
+  const uploadErrors = useSceneStore((state) => state.uploadErrors);
+  const generationSteps = useSceneStore((state) => state.generationSteps);
+  const generationMessage = useSceneStore((state) => state.generationMessage);
   const loadDemoScene = useSceneStore((state) => state.loadDemoScene);
   const setSceneMode = useSceneStore((state) => state.setSceneMode);
+  const setAddressDraft = useSceneStore((state) => state.setAddressDraft);
+  const addEvidenceFiles = useSceneStore((state) => state.addEvidenceFiles);
+  const removeEvidencePhoto = useSceneStore((state) => state.removeEvidencePhoto);
+  const selectEvidencePhoto = useSceneStore((state) => state.selectEvidencePhoto);
+  const generateScene = useSceneStore((state) => state.generateScene);
+  const resetSession = useSceneStore((state) => state.resetSession);
+  const disposeCustomUploads = useSceneStore((state) => state.disposeCustomUploads);
   const [viewportMode, setViewportMode] = useState<ViewportMode>("map");
+  const [isDragActive, setIsDragActive] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const sceneMode = activeProject.scenario.activeMode;
-  const selectedEvidence = activeProject.evidence[0];
+  const selectedEvidence =
+    activeProject.evidence.find((photo) => photo.id === selectedEvidenceId) ??
+    activeProject.evidence[0];
   const confidencePercent = Math.round(activeProject.confidence.overall * 100);
+  const isCustomScene = activeProject.id === "custom-session";
+  const traitSourceLabel = isCustomScene
+    ? "Best-effort defaults; review required"
+    : "Seeded from curated example";
+
+  useEffect(() => disposeCustomUploads, [disposeCustomUploads]);
+
+  function handleFiles(files: FileList | File[]) {
+    addEvidenceFiles(Array.from(files));
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  }
+
+  function handleFileInputChange(event: ChangeEvent<HTMLInputElement>) {
+    if (event.currentTarget.files) {
+      handleFiles(event.currentTarget.files);
+    }
+  }
+
+  function handleDrop(event: DragEvent<HTMLLabelElement>) {
+    event.preventDefault();
+    setIsDragActive(false);
+    handleFiles(event.dataTransfer.files);
+  }
+
+  function handleResetSession() {
+    if (isCustomScene) {
+      const shouldReset = window.confirm("Reset the session and remove uploaded photo previews?");
+
+      if (!shouldReset) {
+        return;
+      }
+    }
+
+    resetSession();
+  }
 
   return (
     <div className="app-shell">
@@ -97,7 +153,11 @@ export function App() {
             <SectionHeader
               action={
                 <Tooltip label="Add source photos">
-                  <IconButton label="Upload photos">
+                  <IconButton
+                    label="Upload photos"
+                    onClick={() => fileInputRef.current?.click()}
+                    tooltip="Upload photos"
+                  >
                     <Upload aria-hidden="true" />
                   </IconButton>
                 </Tooltip>
@@ -109,8 +169,9 @@ export function App() {
                 <select
                   aria-label="Curated example"
                   onChange={(event) => loadDemoScene(event.currentTarget.value)}
-                  value={activeProject.id}
+                  value={isCustomScene ? "custom-session" : activeProject.id}
                 >
+                  {isCustomScene ? <option value="custom-session">Custom evidence</option> : null}
                   {catalog.map((scene) => (
                     <option key={scene.id} value={scene.id}>
                       {scene.name}
@@ -119,26 +180,98 @@ export function App() {
                 </select>
               </FieldWrapper>
               <FieldWrapper label="Address">
-                <input readOnly value={activeProject.location.address} />
+                <input
+                  aria-label="Address"
+                  onChange={(event) => setAddressDraft(event.currentTarget.value)}
+                  placeholder="Enter field address"
+                  value={addressDraft}
+                />
               </FieldWrapper>
-              <div className="drop-zone">
+              <label
+                className={`drop-zone${isDragActive ? " drop-zone--active" : ""}`}
+                onDragLeave={() => setIsDragActive(false)}
+                onDragOver={(event) => {
+                  event.preventDefault();
+                  setIsDragActive(true);
+                }}
+                onDrop={handleDrop}
+              >
+                <input
+                  ref={fileInputRef}
+                  accept="image/jpeg,image/png,image/webp"
+                  aria-label="Photo upload"
+                  multiple
+                  onChange={handleFileInputChange}
+                  type="file"
+                />
                 <Camera aria-hidden="true" />
                 <span>
-                  {activeProject.evidence.length} source{" "}
-                  {activeProject.evidence.length === 1 ? "photo" : "photos"} queued
+                  Drop or choose JPEG, PNG, or WebP photos
                 </span>
-              </div>
+                <small>
+                  {activeProject.evidence.length}/{PHOTO_LIMITS.maxPhotos} queued · 10 MB each ·
+                  40 MB total
+                </small>
+              </label>
+              {uploadErrors.length > 0 ? (
+                <div className="capture-errors" role="status">
+                  {uploadErrors.map((error) => (
+                    <p key={error}>{error}</p>
+                  ))}
+                </div>
+              ) : null}
               <div className="thumbnail-strip" aria-label="Evidence photos">
                 {activeProject.evidence.map((photo, index) => (
-                  <button className="thumbnail thumbnail--selected" key={photo.id} type="button">
-                    <img alt="" src={photo.uri} />
-                    <span>{String(index + 1).padStart(2, "0")}</span>
-                  </button>
+                  <div
+                    className={`thumbnail${photo.id === selectedEvidence.id ? " thumbnail--selected" : ""}`}
+                    key={photo.id}
+                  >
+                    <button
+                      aria-label={`Select ${photo.title}`}
+                      className="thumbnail__select"
+                      onClick={() => selectEvidencePhoto(photo.id)}
+                      type="button"
+                    >
+                      <img alt="" src={photo.uri} />
+                      <span>{String(index + 1).padStart(2, "0")}</span>
+                    </button>
+                    {photo.origin === "user-upload" ? (
+                      <IconButton
+                        className="thumbnail__remove"
+                        label={`Remove ${photo.title}`}
+                        onClick={() => removeEvidencePhoto(photo.id)}
+                        tooltip="Remove photo"
+                      >
+                        <X aria-hidden="true" />
+                      </IconButton>
+                    ) : null}
+                  </div>
                 ))}
               </div>
-              <Button icon={<Layers aria-hidden="true" />} variant="primary">
-                Generate scene
-              </Button>
+              <div className="capture-actions">
+                <Button icon={<Layers aria-hidden="true" />} onClick={generateScene} variant="primary">
+                  Generate scene
+                </Button>
+                <Button icon={<Trash2 aria-hidden="true" />} onClick={handleResetSession}>
+                  Reset session
+                </Button>
+              </div>
+              <div className="generation-panel" aria-live="polite">
+                <strong>{generationMessage}</strong>
+                <ol>
+                  {generationSteps.map((step) => (
+                    <li data-status={step.status} key={step.id}>
+                      <span>{step.label}</span>
+                      <em>{step.detail}</em>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+              <p className="capture-note">
+                {isCustomScene
+                  ? "Custom uploads stay in this browser session and use best-effort defaults until review."
+                  : "Curated traits are seeded from the selected normal-photo example."}
+              </p>
             </div>
           </section>
 
@@ -151,7 +284,7 @@ export function App() {
                   <div className="trait-row" key={row.key}>
                     <span>{row.label}</span>
                     <strong>{row.format ? row.format(value) : String(value)}</strong>
-                    <em>{row.source}</em>
+                    <em>{traitSourceLabel}</em>
                   </div>
                 );
               })}
@@ -227,15 +360,17 @@ export function App() {
           <section className="rail-section">
             <SectionHeader
               action={
-                <a
-                  aria-label="Open source attribution"
-                  className="source-link"
-                  href={selectedEvidence.attribution.sourcePageUrl}
-                  rel="noreferrer"
-                  target="_blank"
-                >
-                  <ExternalLink aria-hidden="true" />
-                </a>
+                selectedEvidence ? (
+                  <a
+                    aria-label="Open source attribution"
+                    className="source-link"
+                    href={selectedEvidence.attribution.sourcePageUrl}
+                    rel="noreferrer"
+                    target="_blank"
+                  >
+                    <ExternalLink aria-hidden="true" />
+                  </a>
+                ) : null
               }
               title="Evidence"
             />

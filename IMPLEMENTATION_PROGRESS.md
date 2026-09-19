@@ -70,3 +70,27 @@ This log records completed implementation phases. It does not authorize starting
   - `npm install` still reports 2 moderate transitive audit findings; no forced dependency upgrade was applied in Phase 3.
   - Playwright/localhost checks required running outside the sandbox with approval.
 - Suggested commit message: `phase-3: add canonical scene catalog`
+
+## Phase 4 - Evidence Capture And Generation Workflow
+
+- Completion date: 2026-09-19
+- Change summary: Replaced the static capture placeholder with a coherent curated/custom evidence workflow: editable address draft, drag/drop and file-picker uploads, JPEG/PNG/WebP validation, 8-photo/10 MB/40 MB limits, actionable upload errors, custom scene defaults with lower confidence, selectable evidence thumbnails, user-upload removal with object URL cleanup, truthful generation status steps, and reset confirmation when uploaded previews would be lost.
+- Automated checks and results:
+  - `npm run typecheck` - passed
+  - `npm run lint` - passed
+  - `npm test` - passed, 23 tests
+  - `npm run build` - passed
+  - `npm run test:e2e` - passed, 4 Playwright tests
+- Manual checks performed:
+  - Inspected regenerated `test-results/phase-2-desktop-1440x900.png` after adding the capture workflow; fixed rail clipping and confirmed map/3D still dominate the workspace.
+  - Inspected regenerated `test-results/phase-2-mobile-390x844.png`; confirmed mode labels, capture controls, generation status, and output sections stack without horizontal scroll.
+  - Confirmed custom uploads are represented as session-only `user-upload` evidence with object URLs, not server calls.
+  - Confirmed copy distinguishes curated traits as `Seeded from curated example` and custom traits as `Best-effort defaults; review required`.
+  - Confirmed generation steps mark available curated stages complete and later custom GIS/footprint stages pending instead of fake-successful.
+- Known limitations or deferred items:
+  - Custom scene coordinates and manual rectangle are temporary low-confidence placeholders until map/geocoding/footprint work begins in Phases 5 and 6.
+  - Uploads remain browser-session-only and disappear on refresh by design.
+  - Reordering evidence is not implemented in this phase; evidence can be selected and user-uploaded photos can be removed.
+  - Map and 3D remain placeholders until Phases 5 and 7.
+  - Playwright/localhost checks required running outside the sandbox with approval.
+- Suggested commit message: `phase-4: add evidence capture workflow`

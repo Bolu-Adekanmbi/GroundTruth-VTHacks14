@@ -104,6 +104,13 @@ code {
   padding: 14px;
 }
 
+.section-body > *,
+.generation-panel > *,
+.generation-panel li,
+.capture-note {
+  min-width: 0;
+}
+
 .drop-zone {
   display: grid;
   min-height: 84px;
@@ -115,12 +122,53 @@ code {
   color: var(--ink-muted);
   font-size: 13px;
   text-align: center;
+  cursor: pointer;
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease;
+}
+
+.drop-zone input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.drop-zone--active,
+.drop-zone:focus-within {
+  border-color: var(--gis);
+  background: var(--gis-soft);
 }
 
 .drop-zone svg {
   width: 22px;
   height: 22px;
   color: var(--gis);
+}
+
+.drop-zone small,
+.capture-note {
+  color: var(--ink-muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.capture-errors {
+  display: grid;
+  gap: 6px;
+  border-left: 3px solid var(--danger);
+  background: #fff4f2;
+  color: var(--danger);
+  padding: 8px 10px;
+}
+
+.capture-errors p,
+.capture-note {
+  margin: 0;
 }
 
 .thumbnail-strip {
@@ -143,13 +191,22 @@ code {
   font-size: 12px;
 }
 
-.thumbnail img {
+.thumbnail__select {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  padding: 0;
+}
+
+.thumbnail__select img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
-.thumbnail span {
+.thumbnail__select span {
   position: absolute;
   right: 5px;
   bottom: 4px;
@@ -162,9 +219,100 @@ code {
   background: rgb(255 255 255 / 90%);
 }
 
+.thumbnail__remove {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  z-index: 2;
+  width: 26px;
+  height: 26px;
+  background: rgb(255 255 255 / 92%);
+}
+
+.thumbnail__remove svg {
+  width: 14px;
+  height: 14px;
+}
+
 .thumbnail--selected {
   border-color: var(--gis);
   box-shadow: inset 0 0 0 2px var(--gis);
+}
+
+.capture-actions {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+.capture-actions .button {
+  width: 100%;
+}
+
+.generation-panel {
+  display: grid;
+  gap: 9px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--surface-raised);
+  padding: 10px;
+}
+
+.generation-panel > strong {
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.generation-panel ol {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.generation-panel li {
+  display: grid;
+  grid-template-columns: 11px minmax(0, 1fr);
+  gap: 2px 8px;
+  color: var(--ink-muted);
+  font-size: 12px;
+}
+
+.generation-panel li::before {
+  width: 9px;
+  height: 9px;
+  margin-top: 4px;
+  border-radius: 50%;
+  background: var(--line-strong);
+  content: "";
+}
+
+.generation-panel li[data-status="complete"]::before {
+  background: var(--safe);
+}
+
+.generation-panel li[data-status="pending"]::before {
+  background: var(--line-strong);
+}
+
+.generation-panel li[data-status="warning"]::before {
+  background: var(--warning);
+}
+
+.generation-panel span {
+  color: var(--ink);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.generation-panel em {
+  grid-column: 2;
+  font-style: normal;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
 }
 
 .trait-row,
