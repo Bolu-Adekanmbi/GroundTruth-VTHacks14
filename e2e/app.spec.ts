@@ -168,6 +168,58 @@ test("shows a recoverable map warning when basemap tiles fail", async ({ page })
   await expect(page.getByText("Basemap tiles are unavailable; footprint and GIS state remain visible.")).toBeVisible();
 });
 
+test("keeps core controls keyboard operable", async ({ page }) => {
+  await page.goto("/");
+  const mode = page.getByRole("radio", { name: "Scorched Nebraska" });
+  await mode.focus();
+  await page.keyboard.press("Space");
+  await expect(mode).toBeChecked();
+
+  const download = page.getByRole("button", { name: "Download GeoJSON" });
+  await download.focus();
+  const [file] = await Promise.all([page.waitForEvent("download"), page.keyboard.press("Enter")]);
+  expect(file.suggestedFilename()).toContain("scorched.geojson");
+});
+
+const polishViewports = [
+  { name: "desktop-1440x900", width: 1440, height: 900 },
+  { name: "laptop-1280x720", width: 1280, height: 720 },
+  { name: "tablet-landscape-1024x768", width: 1024, height: 768 },
+  { name: "tablet-portrait-768x1024", width: 768, height: 1024 },
+  { name: "mobile-390x844", width: 390, height: 844 }
+];
+
+for (const viewport of polishViewports) {
+  test(`keeps Phase 13 layout within ${viewport.name}`, async ({ page }) => {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height });
+    await page.goto("/");
+    if (viewport.width < 768) await page.getByRole("radio", { name: "3D" }).click();
+    await expect(page.locator(".scene-stage canvas")).toBeVisible();
+    await expect(page.locator("body")).toHaveJSProperty("scrollWidth", viewport.width);
+  });
+}
+
+for (const mode of ["base", "scorched", "disaster"] as const) {
+  for (const viewport of [
+    { name: "desktop", width: 1440, height: 900 },
+    { name: "mobile", width: 390, height: 844 }
+  ]) {
+    test(`captures final ${mode} at ${viewport.name}`, async ({ page }) => {
+      await page.setViewportSize({ width: viewport.width, height: viewport.height });
+      await page.goto("/");
+      if (mode !== "base") await page.getByRole("radio", { name: mode === "scorched" ? "Scorched Nebraska" : "Disaster Response" }).click();
+      if (mode === "disaster") {
+        await page.getByRole("combobox", { name: "Damage type" }).selectOption("fire");
+        await page.getByLabel("Damage severity").fill("0.7");
+        await page.getByLabel("Hazard tags").fill("debris field");
+      }
+      if (viewport.width < 768) await page.getByRole("radio", { name: "3D" }).click();
+      await expect(page.locator(".scene-stage canvas")).toBeVisible();
+      await page.screenshot({ fullPage: true, path: `test-results/final-${mode}-${viewport.name}.png` });
+    });
+  }
+}
+
 const screenshotViewports = [
   { name: "desktop-1440x900", width: 1440, height: 900 },
   { name: "laptop-1280x720", width: 1280, height: 720 },

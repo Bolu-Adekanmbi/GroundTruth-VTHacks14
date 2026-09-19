@@ -13,7 +13,6 @@ import {
   Download,
   ExternalLink,
   Layers,
-  LocateFixed,
   MapPin,
   Maximize2,
   MoveDown,
@@ -582,9 +581,6 @@ export function App() {
               value={viewportMode}
             />
             <div className="viewport-actions" aria-label="Viewport actions">
-              <IconButton label="Locate footprint" tooltip="Locate footprint">
-                <LocateFixed aria-hidden="true" />
-              </IconButton>
               <IconButton
                 label="Reset view"
                 onClick={() => sceneViewportRef.current?.resetView()}

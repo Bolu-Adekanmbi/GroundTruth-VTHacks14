@@ -278,3 +278,27 @@ This log records completed implementation phases. It does not authorize starting
   - Vite continues to report expected large lazy chunks for MapLibre and Three.js. Bundle tuning belongs in Phase 13.
   - Playwright/localhost checks required running outside the sandbox with approval.
 - Suggested commit message: `phase-12: harden custom and offline workflows`
+
+## Phase 13 - Responsive, Accessible, Visual, And Performance Polish
+
+- Completion date: 2026-09-19
+- Change summary: Removed the dead Locate footprint toolbar control, refined disabled-state and long-value wrapping behavior, and tightened narrow-screen status spacing. Preserved the existing lazy map/3D boundaries, memoized scene plans, capped canvas DPR, reduced-motion rules, and mobile Map/3D tab behavior. Added keyboard download/mode coverage, final responsive checks across five viewports, and final Base/Scorched/Disaster desktop/mobile captures.
+- Automated checks and results:
+  - `npm run typecheck` - passed
+  - `npm run lint` - passed
+  - `npm test` - passed, 63 tests
+  - `npm run build` - passed
+  - `npm run test:e2e` - passed, 28 Playwright tests
+  - Focused final screenshot capture group - passed, 6 Base/Scorched/Disaster desktop/mobile captures
+- Manual checks performed:
+  - Inspected `test-results/final-base-desktop.png`, `test-results/final-scorched-mobile.png`, and `test-results/final-disaster-desktop.png`; confirmed the Base model is framed, mobile Scorched controls stack without horizontal overflow, and configured Disaster overlays, marker, legend, and caveat are visible.
+  - Verified required responsive paths at 1440x900, 1280x720, 1024x768, 768x1024, and 390x844 through Playwright no-horizontal-scroll checks.
+  - Verified keyboard Space changes scene mode and Enter activates the focused GeoJSON download control.
+  - Verified familiar Lucide icon actions retain labels/tooltips and no remaining toolbar action is inert.
+  - Anti-generic design checklist: passed. The app opens directly to the GIS/3D workspace; uses a restrained multi-color operational palette; avoids hero/marketing composition, decorative gradients/orbs, nested cards, and generic dashboard filler; and keeps maps, evidence, 3D output, and dense controls as first-class working surfaces.
+- Known limitations or deferred items:
+  - Vite reports large lazy chunks for MapLibre and Three.js. The bundles are split by feature; deeper bundle work is deferred unless deployment profiling requires it.
+  - No third-party accessibility scanner is installed; semantic labels, keyboard paths, focus-visible styling, and reduced-motion behavior were checked through component and Playwright coverage.
+  - Fresh public basemap tiles remain network-dependent, with the Phase 12 local fallback state shown on failure.
+  - The Phase 7 rotated-footprint renderer alignment issue remains deferred.
+- Suggested commit message: `phase-13: polish responsive accessible demo`

@@ -69,6 +69,13 @@
   white-space: nowrap;
 }
 
+.output-row span,
+.provenance-panel p,
+.scenario-metadata strong,
+.disaster-caveat {
+  overflow-wrap: anywhere;
+}
+
 code {
   font-family: var(--font-mono);
   font-size: 12px;
@@ -456,6 +463,17 @@ code {
 .statusbar {
   color: var(--ink-muted);
   font-size: 12px;
+}
+
+@media (max-width: 420px) {
+  .mode-control .segmented__item {
+    font-size: 12px;
+  }
+
+  .statusbar {
+    gap: 7px 10px;
+    padding-inline: 10px;
+  }
 }
 
 .trait-row strong,
