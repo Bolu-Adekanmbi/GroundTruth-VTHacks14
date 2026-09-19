@@ -39,6 +39,7 @@ export function GisMap({ project, onSetManualLocation }: GisMapProps) {
   const [cursorCoordinate, setCursorCoordinate] = useState<LngLat | null>(null);
   const centroid = useMemo(() => getProjectCentroid(project), [project]);
   const bounds = useMemo(() => getBounds(getOuterRing(project)), [project]);
+  const viewportKey = `${project.id}:${centroid[0].toFixed(6)}:${centroid[1].toFixed(6)}`;
   const selectedProjectIdRef = useRef("");
   const style = useMemo(() => getConfiguredMapStyle(), []);
   const displayCoordinate = cursorCoordinate ?? centroid;
@@ -100,15 +101,15 @@ export function GisMap({ project, onSetManualLocation }: GisMapProps) {
       }
     });
 
-    if (selectedProjectIdRef.current !== project.id) {
-      selectedProjectIdRef.current = project.id;
+    if (selectedProjectIdRef.current !== viewportKey) {
+      selectedProjectIdRef.current = viewportKey;
       map.fitBounds(getBoundsArray(bounds), {
         padding: fitPadding,
         duration: 0,
         maxZoom: 18
       });
     }
-  }, [bounds, isMapReady, project.footprint.feature, project.id]);
+  }, [bounds, isMapReady, project.footprint.feature, viewportKey]);
 
   function handleMouseMove(event: MapLayerMouseEvent) {
     setCursorCoordinate([event.lngLat.lng, event.lngLat.lat]);

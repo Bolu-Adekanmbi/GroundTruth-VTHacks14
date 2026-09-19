@@ -57,8 +57,8 @@ describe("App", () => {
     const user = userEvent.setup();
     render(<App />);
 
-    await user.clear(screen.getByRole("textbox", { name: "Address" }));
-    await user.type(screen.getByRole("textbox", { name: "Address" }), "55 Demo Lane");
+    await user.clear(screen.getByLabelText("Address"));
+    await user.type(screen.getByLabelText("Address"), "55 Demo Lane");
     fireEvent.drop(screen.getByText("Drop or choose JPEG, PNG, or WebP photos"), {
       dataTransfer: {
         files: [imageFile("front.jpg"), imageFile("notes.txt", "text/plain")]

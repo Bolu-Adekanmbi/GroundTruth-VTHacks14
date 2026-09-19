@@ -666,11 +666,15 @@ export const useSceneStore = create<SceneStore>((set) => ({
         return createUploadEvidence(file, id, existingEvidence.length + index);
       });
       const evidence = [...existingEvidence, ...uploadedEvidence];
-      const activeProject = buildCustomProject(state.addressDraft, evidence);
+      const addressDraft = state.activeProject.id === "custom-session" || state.addressDraft !== state.activeProject.location.address
+        ? state.addressDraft
+        : "";
+      const activeProject = buildCustomProject(addressDraft, evidence);
 
       return {
         activeProject,
         seedProject: cloneProject(activeProject),
+        addressDraft,
         selectedEvidenceId: state.selectedEvidenceId.startsWith("custom-photo-")
           ? state.selectedEvidenceId
           : evidence[0].id,

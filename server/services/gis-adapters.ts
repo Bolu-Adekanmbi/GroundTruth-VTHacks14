@@ -115,6 +115,28 @@ export async function geocodeAddress(
   }
 }
 
+export async function searchLocations(query: string, options: GisAdapterOptions = {}) {
+  if (query.trim().length < 3 || !isLiveGisEnabled(options.env)) return [];
+  const fetcher = options.fetcher ?? fetch;
+  const url = new URL(options.env?.GROUNDTRUTH_NOMINATIM_URL ?? "https://nominatim.openstreetmap.org/search");
+  url.searchParams.set("format", "jsonv2");
+  url.searchParams.set("limit", "5");
+  url.searchParams.set("q", query);
+  try {
+    const response = await fetchWithTimeout(fetcher, url, options.env);
+    if (!response.ok) return [];
+    return ((await response.json()) as NominatimPlace[]).flatMap((place) => {
+      const longitude = Number(place.lon);
+      const latitude = Number(place.lat);
+      return Number.isFinite(longitude) && Number.isFinite(latitude) && place.display_name
+        ? [{ address: place.display_name, longitude, latitude }]
+        : [];
+    });
+  } catch {
+    return [];
+  }
+}
+
 export async function lookupFootprint(
   request: FootprintRequest,
   options: GisAdapterOptions = {}

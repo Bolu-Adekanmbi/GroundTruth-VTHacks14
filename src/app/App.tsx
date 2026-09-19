@@ -137,8 +137,12 @@ export function App() {
   const [viewportMode, setViewportMode] = useState<ViewportMode>("map");
   const [isDragActive, setIsDragActive] = useState(false);
   const [exportError, setExportError] = useState("");
+  const [customLatitude, setCustomLatitude] = useState("");
+  const [customLongitude, setCustomLongitude] = useState("");
+  const [locationSuggestions, setLocationSuggestions] = useState<Array<{ address: string; longitude: number; latitude: number }>>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const sceneViewportRef = useRef<SceneViewportHandle>(null);
+  const selectedSuggestionRef = useRef("");
   const sceneMode = activeProject.scenario.activeMode;
   const selectedEvidence =
     activeProject.evidence.find((photo) => photo.id === selectedEvidenceId) ??
@@ -156,6 +160,24 @@ export function App() {
     : "A valid WGS84 footprint is required before exporting.";
 
   useEffect(() => disposeCustomUploads, [disposeCustomUploads]);
+  useEffect(() => {
+    if (selectedSuggestionRef.current === addressDraft) {
+      selectedSuggestionRef.current = "";
+      setLocationSuggestions([]);
+      return;
+    }
+    if (addressDraft.trim().length < 3 || !isCustomScene) {
+      setLocationSuggestions([]);
+      return;
+    }
+    const timeout = window.setTimeout(() => {
+      void fetch(`/api/geocode/suggest?q=${encodeURIComponent(addressDraft)}`)
+        .then((response) => response.ok ? response.json() : { data: [] })
+        .then((payload: { data?: Array<{ address: string; longitude: number; latitude: number }>; }) => setLocationSuggestions(payload.data ?? []))
+        .catch(() => setLocationSuggestions([]));
+    }, 300);
+    return () => window.clearTimeout(timeout);
+  }, [addressDraft, isCustomScene]);
 
   function handleFiles(files: FileList | File[]) {
     addEvidenceFiles(Array.from(files));
@@ -204,6 +226,13 @@ export function App() {
     } catch {
       setExportError("Export validation failed. Review the footprint and scene fields, then try again.");
     }
+  }
+
+  function handleGenerateScene() {
+    const latitude = Number(customLatitude);
+    const longitude = Number(customLongitude);
+    if (isCustomScene && customLatitude && customLongitude && Number.isFinite(latitude) && Number.isFinite(longitude)) setManualLocation([longitude, latitude]);
+    void generateScene();
   }
 
   return (
@@ -264,14 +293,21 @@ export function App() {
                   ))}
                 </select>
               </FieldWrapper>
-              <FieldWrapper label="Address">
+              <FieldWrapper label="Location search">
                 <input
                   aria-label="Address"
                   onChange={(event) => setAddressDraft(event.currentTarget.value)}
-                  placeholder="Enter field address"
+                  placeholder="Search a building or enter an address"
                   value={addressDraft}
                 />
               </FieldWrapper>
+              {locationSuggestions.length > 0 ? <div className="location-suggestions" role="listbox" aria-label="Location suggestions">
+                {locationSuggestions.map((suggestion) => <button key={`${suggestion.longitude},${suggestion.latitude}`} onClick={() => { selectedSuggestionRef.current = suggestion.address; setAddressDraft(suggestion.address); setManualLocation([suggestion.longitude, suggestion.latitude]); setLocationSuggestions([]); void generateScene(); }} role="option" type="button">{suggestion.address}</button>)}
+              </div> : null}
+              <div className="manual-gis-grid">
+                <FieldWrapper label="Latitude"><input aria-label="Custom latitude" inputMode="decimal" onChange={(event) => setCustomLatitude(event.currentTarget.value)} placeholder="Optional coordinate" type="number" value={customLatitude} /></FieldWrapper>
+                <FieldWrapper label="Longitude"><input aria-label="Custom longitude" inputMode="decimal" onChange={(event) => setCustomLongitude(event.currentTarget.value)} placeholder="Optional coordinate" type="number" value={customLongitude} /></FieldWrapper>
+              </div>
               <label
                 className={`drop-zone${isDragActive ? " drop-zone--active" : ""}`}
                 onDragLeave={() => setIsDragActive(false)}
@@ -336,9 +372,7 @@ export function App() {
               <div className="capture-actions">
                 <Button
                   icon={<Layers aria-hidden="true" />}
-                  onClick={() => {
-                    void generateScene();
-                  }}
+                  onClick={handleGenerateScene}
                   variant="primary"
                 >
                   Generate scene

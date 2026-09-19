@@ -6,9 +6,14 @@ import {
   geocodeRequestSchema,
   geocodeResponseSchema
 } from "../../shared/api-schema.js";
-import { geocodeAddress, lookupFootprint } from "../services/gis-adapters.js";
+import { geocodeAddress, lookupFootprint, searchLocations } from "../services/gis-adapters.js";
 
 export const gisRouter = Router();
+
+gisRouter.get("/geocode/suggest", async (request, response) => {
+  const query = typeof request.query.q === "string" ? request.query.q : "";
+  response.json({ ok: true, data: await searchLocations(query) });
+});
 
 gisRouter.post("/geocode", async (request, response) => {
   const parsed = geocodeRequestSchema.safeParse(request.body);
