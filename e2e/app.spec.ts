@@ -80,6 +80,26 @@ test("renders a nonblank procedural building canvas and supports camera actions"
   await expect(canvas).toHaveScreenshot("phase-7-willard-canvas.png");
 });
 
+test("renders an editable deterministic Scorched Nebraska treatment", async ({ page }) => {
+  await page.goto("/");
+  const canvas = page.locator(".scene-stage canvas");
+
+  await page.getByRole("radio", { name: "Scorched Nebraska" }).click();
+  await expect(page.getByText("Generated scenario attributes")).toBeVisible();
+  await expect(page.getByText("Scorched landmark")).toBeVisible();
+  await expect(canvas).toBeVisible();
+  await expect(canvas).toHaveScreenshot("phase-9-scorched-burruss-canvas.png");
+
+  const scorch = page.getByLabel("Scorch intensity");
+  await scorch.fill("0.9");
+  await expect(scorch).toHaveValue("0.9");
+  await expect(page.getByText("Heavy fire damage")).toBeVisible();
+
+  await page.getByRole("radio", { name: "Base" }).click();
+  await page.getByRole("radio", { name: "Scorched Nebraska" }).click();
+  await expect(scorch).toHaveValue("0.9");
+});
+
 const screenshotViewports = [
   { name: "desktop-1440x900", width: 1440, height: 900 },
   { name: "laptop-1280x720", width: 1280, height: 720 },
@@ -87,7 +107,7 @@ const screenshotViewports = [
 ];
 
 for (const viewport of screenshotViewports) {
-  test(`captures Phase 8 screenshot at ${viewport.name}`, async ({ page }) => {
+  test(`captures Phase 9 screenshot at ${viewport.name}`, async ({ page }) => {
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
     await page.goto("/");
 

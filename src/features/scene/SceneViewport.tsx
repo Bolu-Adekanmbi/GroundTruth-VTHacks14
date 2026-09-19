@@ -25,6 +25,7 @@ import {
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import type { SceneProject } from "../../../shared/scene-schema";
 import { buildScenePlan, getMaterialColor, type ScenePlan } from "./scene-plan";
+import { buildScorchedPlan, type ScorchedPlan, type ScorchedTransform } from "./scorched-plan";
 
 export interface SceneViewportHandle {
   fitBuilding: () => void;
@@ -38,6 +39,10 @@ export const SceneViewport = forwardRef<SceneViewportHandle, { project: ScenePro
     const [command, setCommand] = useState<{ id: number; type: CameraCommand }>({ id: 0, type: "fit" });
     const canRender = useWebGlAvailability();
     const plan = useMemo(() => buildScenePlan(project), [project]);
+    const scorchedPlan = useMemo(
+      () => project.scenario.activeMode === "scorched" ? buildScorchedPlan(project, plan) : null,
+      [plan, project]
+    );
 
     useImperativeHandle(
       ref,
@@ -53,14 +58,14 @@ export const SceneViewport = forwardRef<SceneViewportHandle, { project: ScenePro
     }
 
     return (
-      <div className="scene-stage" aria-label="Interactive 3D building scene">
+      <div className={`scene-stage${scorchedPlan ? " scene-stage--scorched" : ""}`} aria-label="Interactive 3D building scene">
         <Canvas
           camera={{ fov: 42, near: 0.1, far: 2000, position: [70, 56, 70] }}
           dpr={[1, 1.75]}
           gl={{ antialias: true, powerPreference: "high-performance", preserveDrawingBuffer: true }}
           onCreated={({ gl }) => gl.setClearColor(new Color("#d8e0dc"))}
         >
-          <SceneContents command={command} plan={plan} />
+          <SceneContents command={command} plan={plan} scorchedPlan={scorchedPlan} />
         </Canvas>
         <div className="scene-north" aria-label="North points toward the top of the model">N</div>
         <div className="scene-scale" aria-hidden="true"><span /> 20 m</div>
@@ -69,23 +74,24 @@ export const SceneViewport = forwardRef<SceneViewportHandle, { project: ScenePro
   }
 );
 
-function SceneContents({ command, plan }: { command: { id: number; type: CameraCommand }; plan: ScenePlan }) {
+function SceneContents({ command, plan, scorchedPlan }: { command: { id: number; type: CameraCommand }; plan: ScenePlan; scorchedPlan: ScorchedPlan | null }) {
   return (
     <>
       <ambientLight intensity={1.2} />
       <directionalLight castShadow intensity={2.1} position={[55, 85, 35]} shadow-mapSize={[1024, 1024]} />
       <hemisphereLight args={["#e7f3ef", "#5e6259", 1.2]} />
-      <BuildingMass plan={plan} />
-      <WindowInstances plan={plan} />
+      <BuildingMass plan={plan} scorched={Boolean(scorchedPlan)} />
+      <WindowInstances plan={plan} scorched={Boolean(scorchedPlan)} />
       <Entrance plan={plan} />
       <Roof plan={plan} />
+      {scorchedPlan ? <ScorchedLayers plan={scorchedPlan} /> : null}
       <Ground />
       <CameraController command={command} plan={plan} />
     </>
   );
 }
 
-const BuildingMass = memo(function BuildingMass({ plan }: { plan: ScenePlan }) {
+const BuildingMass = memo(function BuildingMass({ plan, scorched }: { plan: ScenePlan; scorched: boolean }) {
   const geometry = useMemo(() => {
     const shape = new Shape();
     plan.outline.forEach((point, index) => {
@@ -103,12 +109,12 @@ const BuildingMass = memo(function BuildingMass({ plan }: { plan: ScenePlan }) {
 
   return (
     <mesh castShadow geometry={geometry} receiveShadow rotation={[-Math.PI / 2, 0, 0]}>
-      <meshStandardMaterial color={getMaterialColor(plan.material)} metalness={plan.material === "metal" ? 0.62 : 0.08} roughness={plan.material === "glass" ? 0.32 : 0.76} />
+      <meshStandardMaterial color={scorched ? "#4c403b" : getMaterialColor(plan.material)} metalness={plan.material === "metal" ? 0.42 : 0.05} roughness={0.9} />
     </mesh>
   );
 });
 
-const WindowInstances = memo(function WindowInstances({ plan }: { plan: ScenePlan }) {
+const WindowInstances = memo(function WindowInstances({ plan, scorched }: { plan: ScenePlan; scorched: boolean }) {
   const meshRef = useRef<InstancedMesh>(null);
   const matrices = useMemo(() => {
     const object = new Object3D();
@@ -131,10 +137,60 @@ const WindowInstances = memo(function WindowInstances({ plan }: { plan: ScenePla
   return (
     <instancedMesh castShadow ref={meshRef} args={[undefined, undefined, matrices.length]}>
       <boxGeometry args={[1, 1, 1]} />
-      <meshStandardMaterial color="#d5e7e6" emissive="#203a3b" emissiveIntensity={0.16} metalness={0.12} roughness={0.22} />
+      <meshStandardMaterial color={scorched ? "#1c2223" : "#d5e7e6"} emissive={scorched ? "#080b0b" : "#203a3b"} emissiveIntensity={scorched ? 0.03 : 0.16} metalness={0.12} roughness={scorched ? 0.78 : 0.22} />
     </instancedMesh>
   );
 });
+
+function ScorchedLayers({ plan }: { plan: ScorchedPlan }) {
+  return (
+    <group>
+      <TransformInstances transforms={plan.boardedWindows} color="#76543a" geometry="board" />
+      <TransformInstances transforms={plan.brokenWindows} color="#101516" geometry="window" />
+      <TransformInstances transforms={plan.debris} color="#6b6259" geometry="debris" />
+      {plan.scorchPatches.map((patch, index) => (
+        <mesh key={`scorch-${index}`} position={patch.position} rotation={[0, patch.yawRad, 0]} scale={patch.scale}>
+          <planeGeometry args={[1, 1]} />
+          <meshBasicMaterial color="#241916" opacity={0.78} transparent />
+        </mesh>
+      ))}
+      {plan.overgrowth.map((tuft, index) => (
+        <mesh castShadow key={`overgrowth-${index}`} position={tuft.position} rotation={[0, tuft.yawRad, 0]} scale={tuft.scale}>
+          <coneGeometry args={[0.55, 1, 5]} />
+          <meshStandardMaterial color={index % 3 === 0 ? "#536c3d" : "#405b38"} roughness={0.95} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
+function TransformInstances({ transforms, color, geometry }: { transforms: ScorchedTransform[]; color: string; geometry: "board" | "window" | "debris" }) {
+  const meshRef = useRef<InstancedMesh>(null);
+  const matrices = useMemo(() => {
+    const object = new Object3D();
+    return transforms.map((transform) => {
+      object.position.set(...transform.position);
+      object.rotation.set(0, transform.yawRad, 0);
+      object.scale.set(...transform.scale);
+      object.updateMatrix();
+      return object.matrix.clone();
+    });
+  }, [transforms]);
+
+  useLayoutEffect(() => {
+    matrices.forEach((matrix, index) => meshRef.current?.setMatrixAt(index, matrix));
+    if (meshRef.current) meshRef.current.instanceMatrix.needsUpdate = true;
+  }, [matrices]);
+
+  if (matrices.length === 0) return null;
+
+  return (
+    <instancedMesh castShadow ref={meshRef} args={[undefined, undefined, matrices.length]}>
+      {geometry === "window" ? <boxGeometry args={[1, 1, 1]} /> : <boxGeometry args={[1, 1, 1]} />}
+      <meshStandardMaterial color={color} roughness={geometry === "board" ? 0.9 : 0.82} />
+    </instancedMesh>
+  );
+}
 
 function Entrance({ plan }: { plan: ScenePlan }) {
   return (

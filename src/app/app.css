@@ -675,6 +675,11 @@ code {
   background-image: url("data:image/svg+xml,%3Csvg width='44' height='44' viewBox='0 0 44 44' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 .5H44M.5 0V44' stroke='%2334413c' stroke-width='1'/%3E%3C/svg%3E");
   background-size: 44px 44px;
   color: #e8eeee;
+  transition: background-color 180ms ease;
+}
+
+.scene-stage--scorched {
+  background-color: #303836;
 }
 
 .scene-stage canvas {
@@ -927,6 +932,85 @@ code {
 
 [data-mode="disaster"] .viewport-panel--scene .viewport-title {
   color: var(--danger);
+}
+
+.scenario-panel {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+}
+
+.scenario-panel__label {
+  color: var(--scorched);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.scenario-panel .field-wrapper {
+  gap: 4px;
+}
+
+.scenario-panel .field-wrapper > span {
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.scenario-slider {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 38px;
+  align-items: center;
+  gap: 8px;
+}
+
+.scenario-slider input {
+  accent-color: var(--scorched);
+}
+
+.scenario-slider output {
+  color: var(--ink-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-align: right;
+}
+
+.scenario-panel input[type="text"],
+.scenario-panel input:not([type]) {
+  min-width: 0;
+  height: 32px;
+  font-size: 12px;
+}
+
+.scenario-metadata {
+  display: grid;
+  gap: 6px;
+  border-top: 1px solid var(--line);
+  padding-top: 9px;
+}
+
+.scenario-metadata div {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.scenario-metadata span {
+  color: var(--ink-muted);
+  font-size: 12px;
+}
+
+.scenario-metadata strong {
+  color: var(--ink);
+  font-size: 12px;
+  text-align: right;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scene-stage {
+    transition: none;
+  }
 }
 
 @media (max-width: 1179px) {

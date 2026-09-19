@@ -183,3 +183,25 @@ This log records completed implementation phases. It does not authorize starting
   - Scorched Nebraska visuals remain deferred to Phase 9; this phase completes only the Base workflow.
   - Vite continues to report expected large lazy chunks for MapLibre and Three.js. Bundle tuning belongs in Phase 13.
 - Suggested commit message: `phase-8: add trait editing and provenance`
+
+## Phase 9 - Scorched Nebraska Transformation
+
+- Completion date: 2026-09-19
+- Change summary: Added a deterministic, local procedural Scorched Nebraska layer around the unchanged Base asset. The scene now darkens and roughens facades, darkens/breaks windows, applies seeded boarded-window meshes and scorch patches, and adds bounded debris and overgrowth. Added compact scenario controls for decay, scorch, overgrowth, boarded-window ratio, debris density, and gameplay tags. Generated gameplay attributes are visibly labeled and stored as simulated scenario provenance; they do not alter evidence-backed Base traits or normal-photo claims.
+- Automated checks and results:
+  - `npm run typecheck` - passed
+  - `npm run lint` - passed
+  - `npm test` - passed, 43 tests
+  - `npm run build` - passed
+  - `npm run test:e2e -- --update-snapshots` - passed, 9 Playwright tests; added a Scorched Burruss canvas baseline
+- Manual checks performed:
+  - Inspected the Base and Scorched Burruss canvas baselines at the same camera. The building silhouette and camera remain stable while the Scorched scene has visibly darkened windows/facade, boarded windows, and procedural degradation.
+  - Verified the Scorched inspector exposes all five numeric controls, gameplay tags, and generated gameplay metadata without presenting those values as observed evidence.
+  - Verified unit coverage at low/high settings increases boards, scorch patches, debris, and vegetation while unchanged inputs produce exactly the same transform plan.
+  - Verified Scorched controls retain their values when switching Base -> Scorched and reset to the selected seeded settings with the existing reset action.
+- Known limitations or deferred items:
+  - The Phase 7 rotated-footprint coordinate-basis issue remains intentionally deferred. Scenario layers inherit the current Base facade/window placement and should not be represented as spatially aligned when a manual footprint has been rotated.
+  - This phase intentionally uses bounded local geometry and materials rather than external image assets. Disaster Response overlays and export formats remain later phases.
+  - Vite continues to report expected large lazy chunks for MapLibre and Three.js. Bundle tuning belongs in Phase 13.
+  - Playwright/localhost checks required running outside the sandbox with approval.
+- Suggested commit message: `phase-9: add scorched nebraska transformation`

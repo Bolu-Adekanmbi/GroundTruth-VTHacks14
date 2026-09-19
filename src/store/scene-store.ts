@@ -43,6 +43,7 @@ interface SceneStore {
   uploadSequence: number;
   loadDemoScene: (id: string) => void;
   setSceneMode: (mode: SceneMode) => void;
+  updateScorchedSettings: (settings: Partial<SceneProject["scenario"]["scorched"]>) => void;
   setAddressDraft: (address: string) => void;
   addEvidenceFiles: (files: File[]) => void;
   removeEvidencePhoto: (id: string) => void;
@@ -538,6 +539,30 @@ export const useSceneStore = create<SceneStore>((set) => ({
         }
       })
     }));
+  },
+  updateScorchedSettings: (settings) => {
+    set((state) => {
+      const activeProject = sceneProjectSchema.parse({
+        ...state.activeProject,
+        updatedAt: new Date().toISOString(),
+        scenario: {
+          ...state.activeProject.scenario,
+          scorched: {
+            ...state.activeProject.scenario.scorched,
+            ...settings
+          }
+        },
+        provenance: ensureProvenance(state.activeProject.provenance, {
+          id: "generated-scorched-scenario",
+          target: "scenario.scorched",
+          source: "rule",
+          claim: "simulated",
+          label: "Generated Scorched Nebraska scenario settings",
+          evidenceIds: []
+        })
+      });
+      return { activeProject };
+    });
   },
   setAddressDraft: (address) => {
     set((state) => {

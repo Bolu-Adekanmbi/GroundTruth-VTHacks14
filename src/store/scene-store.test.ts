@@ -134,4 +134,20 @@ describe("scene store", () => {
     expect(result.current.activeProject.building.material).toBe("brick");
     expect(result.current.activeProject.scenario.activeMode).toBe("scorched");
   });
+
+  it("keeps generated scorched settings separate from base traits and restores their seed", () => {
+    const { result } = renderHook(() => useSceneStore());
+    const originalFloors = result.current.activeProject.building.floors;
+
+    act(() => result.current.setSceneMode("scorched"));
+    act(() => result.current.updateScorchedSettings({ scorchIntensity: 0.9, gameplayTags: ["demo-route"] }));
+
+    expect(result.current.activeProject.building.floors).toBe(originalFloors);
+    expect(result.current.activeProject.scenario.scorched.scorchIntensity).toBe(0.9);
+    expect(result.current.activeProject.provenance.some((record) => record.target === "scenario.scorched" && record.claim === "simulated")).toBe(true);
+
+    act(() => result.current.resetSceneEdits());
+    expect(result.current.activeProject.scenario.scorched.scorchIntensity).toBe(0.42);
+    expect(result.current.activeProject.scenario.activeMode).toBe("scorched");
+  });
 });

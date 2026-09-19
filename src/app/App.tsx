@@ -106,6 +106,7 @@ export function App() {
   const generationMessage = useSceneStore((state) => state.generationMessage);
   const loadDemoScene = useSceneStore((state) => state.loadDemoScene);
   const setSceneMode = useSceneStore((state) => state.setSceneMode);
+  const updateScorchedSettings = useSceneStore((state) => state.updateScorchedSettings);
   const setAddressDraft = useSceneStore((state) => state.setAddressDraft);
   const addEvidenceFiles = useSceneStore((state) => state.addEvidenceFiles);
   const removeEvidencePhoto = useSceneStore((state) => state.removeEvidencePhoto);
@@ -683,6 +684,56 @@ export function App() {
               </div>
             </div>
           </section>
+
+          {sceneMode === "scorched" ? (
+            <section className="rail-section">
+              <SectionHeader title="Scorched Scenario" />
+              <div className="scenario-panel">
+                <span className="scenario-panel__label">Generated scenario attributes</span>
+                {[
+                  ["Decay", "decayIntensity"],
+                  ["Scorch", "scorchIntensity"],
+                  ["Overgrowth", "overgrowthIntensity"],
+                  ["Boarded windows", "boardedWindowRatio"],
+                  ["Debris", "debrisDensity"]
+                ].map(([label, key]) => {
+                  const settingKey = key as keyof typeof activeProject.scenario.scorched;
+                  const value = activeProject.scenario.scorched[settingKey];
+                  if (typeof value !== "number") return null;
+                  return (
+                    <FieldWrapper key={key} label={label}>
+                      <div className="scenario-slider">
+                        <input
+                          aria-label={`${label} intensity`}
+                          max="1"
+                          min="0"
+                          onChange={(event) => updateScorchedSettings({ [settingKey]: Number(event.currentTarget.value) })}
+                          step="0.05"
+                          type="range"
+                          value={value}
+                        />
+                        <output>{Math.round(value * 100)}%</output>
+                      </div>
+                    </FieldWrapper>
+                  );
+                })}
+                <FieldWrapper label="Gameplay tags">
+                  <input
+                    aria-label="Gameplay tags"
+                    onChange={(event) => updateScorchedSettings({
+                      gameplayTags: event.currentTarget.value.split(",").map((tag) => tag.trim()).filter(Boolean)
+                    })}
+                    value={activeProject.scenario.scorched.gameplayTags.join(", ")}
+                  />
+                </FieldWrapper>
+                <div className="scenario-metadata">
+                  <div><span>Asset class</span><strong>Scorched landmark</strong></div>
+                  <div><span>Traversal</span><strong>{activeProject.scenario.scorched.debrisDensity > 0.55 ? "Obstructed exterior" : "Perimeter accessible"}</strong></div>
+                  <div><span>Condition</span><strong>{activeProject.scenario.scorched.scorchIntensity > 0.55 ? "Heavy fire damage" : "Weathered fire damage"}</strong></div>
+                </div>
+              </div>
+            </section>
+          ) : null}
 
           <section className="rail-section rail-section--grow">
             <SectionHeader title="Provenance" />

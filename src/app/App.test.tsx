@@ -139,4 +139,18 @@ describe("App", () => {
     await user.click(screen.getByRole("button", { name: "Reset scene edits" }));
     expect(useSceneStore.getState().activeProject.building.material).toBe("brick");
   });
+
+  it("shows generated scorched controls without changing source traits", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    const sourceFloors = useSceneStore.getState().activeProject.building.floors;
+
+    await user.click(screen.getByRole("radio", { name: "Scorched Nebraska" }));
+    fireEvent.change(screen.getByLabelText("Scorch intensity"), { target: { value: "0.9" } });
+
+    expect(screen.getByText("Generated scenario attributes")).toBeInTheDocument();
+    expect(screen.getByText("Heavy fire damage")).toBeInTheDocument();
+    expect(useSceneStore.getState().activeProject.building.floors).toBe(sourceFloors);
+    expect(useSceneStore.getState().activeProject.scenario.scorched.scorchIntensity).toBe(0.9);
+  });
 });
