@@ -44,6 +44,7 @@ interface SceneStore {
   loadDemoScene: (id: string) => void;
   setSceneMode: (mode: SceneMode) => void;
   updateScorchedSettings: (settings: Partial<SceneProject["scenario"]["scorched"]>) => void;
+  updateDisasterSettings: (settings: Partial<SceneProject["scenario"]["disaster"]>) => void;
   setAddressDraft: (address: string) => void;
   addEvidenceFiles: (files: File[]) => void;
   removeEvidencePhoto: (id: string) => void;
@@ -199,7 +200,7 @@ function buildCustomProject(addressDraft: string, evidence: EvidencePhoto[]): Sc
         severity: 0,
         accessStatus: "unknown",
         hazards: [],
-        responderNote: "User-provided normal photos; no observed damage claim."
+        responderNote: ""
       }
     },
     confidence: {
@@ -361,7 +362,7 @@ async function resolveCustomScene(project: SceneProject, addressDraft: string) {
       });
       locationResolved = true;
     } else {
-      const payload = (await geocodeResponse.json()) as { error?: { message?: string } };
+      const payload = (await geocodeResponse.json()) as { error?: { message?: string; }; };
       warnings.push(payload.error?.message ?? "Geocoding unavailable; manual placement required.");
     }
   } catch {
@@ -406,12 +407,12 @@ async function resolveCustomScene(project: SceneProject, addressDraft: string) {
         },
         assumptions: payload.data.source === "manual-rectangle"
           ? ensureAssumption(nextProject.assumptions, {
-              id: "custom-assumption-manual-footprint",
-              claim: "No authoritative footprint was found; an editable manual rectangle is active.",
-              affectedPath: "footprint",
-              evidenceClaim: "assumed",
-              rationale: "Manual footprint controls keep the scene usable without a live GIS dependency."
-            })
+            id: "custom-assumption-manual-footprint",
+            claim: "No authoritative footprint was found; an editable manual rectangle is active.",
+            affectedPath: "footprint",
+            evidenceClaim: "assumed",
+            rationale: "Manual footprint controls keep the scene usable without a live GIS dependency."
+          })
           : nextProject.assumptions,
         provenance: ensureProvenance(nextProject.provenance, {
           id: "custom-prov-footprint",
@@ -564,6 +565,28 @@ export const useSceneStore = create<SceneStore>((set) => ({
       return { activeProject };
     });
   },
+  updateDisasterSettings: (settings) => {
+    set((state) => {
+      const disaster = { ...state.activeProject.scenario.disaster, ...settings };
+      const activeProject = sceneProjectSchema.parse({
+        ...state.activeProject,
+        updatedAt: new Date().toISOString(),
+        scenario: {
+          ...state.activeProject.scenario,
+          disaster
+        },
+        provenance: ensureProvenance(state.activeProject.provenance, {
+          id: "disaster-response-scenario",
+          target: "scenario.disaster",
+          source: "rule",
+          claim: disaster.status,
+          label: `Disaster Response scenario settings (${disaster.status})`,
+          evidenceIds: []
+        })
+      });
+      return { activeProject };
+    });
+  },
   setAddressDraft: (address) => {
     set((state) => {
       if (state.activeProject.id !== "custom-session") {
@@ -696,9 +719,8 @@ export const useSceneStore = create<SceneStore>((set) => ({
           id: "validate-evidence",
           label: "Validate evidence",
           status: "complete",
-          detail: `${state.activeProject.evidence.length} uploaded photo${
-            state.activeProject.evidence.length === 1 ? "" : "s"
-          } accepted`
+          detail: `${state.activeProject.evidence.length} uploaded photo${state.activeProject.evidence.length === 1 ? "" : "s"
+            } accepted`
         },
         {
           id: "resolve-location",
@@ -745,59 +767,58 @@ export const useSceneStore = create<SceneStore>((set) => ({
         deriveProjectTitle(current.addressDraft) !== "Untitled field scene";
       const generationSteps: GenerationStep[] = isCurrentCustom
         ? [
-            {
-              id: "validate-evidence",
-              label: "Validate evidence",
-              status: "complete",
-              detail: `${current.activeProject.evidence.length} uploaded photo${
-                current.activeProject.evidence.length === 1 ? "" : "s"
+          {
+            id: "validate-evidence",
+            label: "Validate evidence",
+            status: "complete",
+            detail: `${current.activeProject.evidence.length} uploaded photo${current.activeProject.evidence.length === 1 ? "" : "s"
               } accepted`
-            },
-            {
-              id: "resolve-location",
-              label: "Resolve location",
-              status: currentHasAddress ? "warning" : "pending",
-              detail: currentHasAddress ? "Use manual map placement if geocoding is unavailable" : "Address required"
-            },
-            {
-              id: "prepare-footprint",
-              label: "Prepare footprint",
-              status: "warning",
-              detail: "Editable manual footprint is available"
-            },
-            {
-              id: "prepare-traits",
-              label: "Prepare building traits",
-              status: "warning",
-              detail: "Best-effort defaults; review required"
-            }
-          ]
+          },
+          {
+            id: "resolve-location",
+            label: "Resolve location",
+            status: currentHasAddress ? "warning" : "pending",
+            detail: currentHasAddress ? "Use manual map placement if geocoding is unavailable" : "Address required"
+          },
+          {
+            id: "prepare-footprint",
+            label: "Prepare footprint",
+            status: "warning",
+            detail: "Editable manual footprint is available"
+          },
+          {
+            id: "prepare-traits",
+            label: "Prepare building traits",
+            status: "warning",
+            detail: "Best-effort defaults; review required"
+          }
+        ]
         : [
-            {
-              id: "validate-evidence",
-              label: "Validate evidence",
-              status: "complete",
-              detail: "Curated source photos are ready"
-            },
-            {
-              id: "resolve-location",
-              label: "Resolve location",
-              status: "complete",
-              detail: "Seeded from curated example"
-            },
-            {
-              id: "prepare-footprint",
-              label: "Prepare footprint",
-              status: "complete",
-              detail: "Seeded from curated example"
-            },
-            {
-              id: "prepare-traits",
-              label: "Prepare building traits",
-              status: "complete",
-              detail: "Seeded from curated example"
-            }
-          ];
+          {
+            id: "validate-evidence",
+            label: "Validate evidence",
+            status: "complete",
+            detail: "Curated source photos are ready"
+          },
+          {
+            id: "resolve-location",
+            label: "Resolve location",
+            status: "complete",
+            detail: "Seeded from curated example"
+          },
+          {
+            id: "prepare-footprint",
+            label: "Prepare footprint",
+            status: "complete",
+            detail: "Seeded from curated example"
+          },
+          {
+            id: "prepare-traits",
+            label: "Prepare building traits",
+            status: "complete",
+            detail: "Seeded from curated example"
+          }
+        ];
 
       return {
         generationSteps,

@@ -228,3 +228,30 @@ This log records completed implementation phases. It does not authorize starting
   - Vite continues to report expected large lazy chunks for MapLibre and Three.js. Bundle tuning belongs in Phase 13.
   - Playwright/localhost checks required running outside the sandbox with approval.
 - Suggested commit message: `phase-10: add geojson and metadata exports`
+
+## Phase 11 - Disaster Response Mode
+
+- Completion date: 2026-09-19
+- Change summary: Added Disaster Response as a third canonical scene mode alongside Base and Scorched Nebraska. Added controls for status, damage type, severity, access, primary-entrance block state, hazards, and an editable responder note. The app supplies a concise rule-generated responder summary until it is edited. Added deterministic 3D roof/facade/access overlays, a map operational marker, legends, and responsible caveat wording. GeoJSON and metadata now export conditional Disaster features and preserve every scenario claim (`simulated`, `observed`, `inferred`, or `unknown`) without conflating them with normal-photo evidence.
+- Automated checks and results:
+  - `npm run typecheck` - passed
+  - `npm run lint` - passed
+  - `npm test` - passed, 61 tests
+  - `npm run build` - passed
+  - `npm run test:e2e` - passed, 14 Playwright tests
+- Manual checks performed:
+  - Inspected the active-condition canvas baseline `e2e/app.spec.ts-snapshots/phase-11-disaster-burruss-canvas-chromium-linux.png`; confirmed roof damage is visible at the Base camera while preserving the building/camera framing.
+  - Verified the Disaster Response radio button and mode switch renders correctly in all three viewport sizes.
+  - Confirmed disaster scenario controls update project state, do not mutate Scorched settings, and trigger deterministic regeneration of overlay geometries.
+  - Verified export GeoJSON includes hazard_zone, access_status, and damage_assessment features with proper WGS84 coordinates and conditional inclusion based on disaster settings.
+  - Verified export metadata correctly labels scenario provenance as `observed`, `simulated`, `inferred`, or `unknown`, including the current submitted status rather than stale state.
+  - Confirmed access-blocked overlays render at entrance when accessStatus="blocked", damage overlays render based on damageType and severity, and hazard zones render when hazards text is present and severity > 0.1.
+  - Verified determinism: identical disaster inputs produce identical DisasterPlan outputs across multiple runs.
+  - Confirmed the 3D and map legends distinguish the operational overlays, and the app says that conditions require verification and are not a structural safety determination.
+- Known limitations or deferred items:
+  - Entrance markers are trait-derived approximate locations, not surveyed access points.
+  - Disaster overlay visual styling is procedurally placed at fixed scales; fine-grained placement relative to building facade details requires coordinated Phase 7 repair of rotated-footprint alignment (deferred from Phase 7).
+  - Disaster Response does not include a playable simulation or predictive hazard modeling; overlays represent user-entered or simulated conditions for field-team communication and do not claim observational or predictive authority.
+  - Vite continues to report expected large lazy chunks for MapLibre and Three.js. Bundle tuning belongs in Phase 13.
+  - Playwright/localhost checks required running outside the sandbox with approval.
+- Suggested commit message: `phase-11: add disaster response mode`

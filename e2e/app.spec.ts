@@ -132,6 +132,20 @@ test("downloads parseable GeoJSON and metadata for the active Scorched scene", a
   expect(metadata.export.scenario_provenance.claim).toBe("simulated");
 });
 
+test("renders an operational Disaster configuration with a distinct canvas", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("radio", { name: "Disaster Response" }).click();
+  await page.getByRole("combobox", { name: "Damage type" }).selectOption("fire");
+  await page.getByLabel("Damage severity").fill("0.7");
+  await page.getByRole("combobox", { name: "Access status" }).selectOption("blocked");
+  await page.getByLabel("Primary entrance blocked").check();
+  await page.getByLabel("Hazard tags").fill("debris field");
+
+  await expect(page.getByLabel("Disaster overlay legend")).toBeVisible();
+  await expect(page.getByLabel("Disaster operational conditions")).toBeVisible();
+  await expect(page.locator(".scene-stage canvas")).toHaveScreenshot("phase-11-disaster-burruss-canvas.png");
+});
+
 const screenshotViewports = [
   { name: "desktop-1440x900", width: 1440, height: 900 },
   { name: "laptop-1280x720", width: 1280, height: 720 },
@@ -155,6 +169,33 @@ for (const viewport of screenshotViewports) {
     await page.screenshot({
       fullPage: true,
       path: `test-results/phase-8-${viewport.name}.png`
+    });
+  });
+}
+
+for (const viewport of screenshotViewports) {
+  test(`captures Phase 11 Disaster mode screenshot at ${viewport.name}`, async ({ page }) => {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height });
+    await page.goto("/");
+
+    // Switch to Disaster mode
+    await page.getByRole("radio", { name: "Disaster Response" }).click();
+
+    await expect(page.getByRole("heading", { name: "GroundTruth" })).toBeVisible();
+    await expect(page.getByRole("radio", { name: "Disaster Response" })).toBeChecked();
+    await expect(page.locator(".maplibregl-canvas")).toBeVisible();
+    if (viewport.width < 768) {
+      await page.getByRole("radio", { name: "3D" }).click();
+    }
+    await expect(page.locator(".scene-stage canvas")).toBeVisible();
+
+    // Verify disaster scenario panel is visible
+    await expect(page.locator(".scenario-panel")).toBeVisible();
+
+    await expect(page.locator("body")).toHaveJSProperty("scrollWidth", viewport.width);
+    await page.screenshot({
+      fullPage: true,
+      path: `test-results/phase-11-${viewport.name}.png`
     });
   });
 }

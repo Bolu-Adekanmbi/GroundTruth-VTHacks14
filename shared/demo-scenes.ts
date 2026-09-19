@@ -87,7 +87,7 @@ const rawDemoScenes = [
         severity: 0,
         accessStatus: "open",
         hazards: [],
-        responderNote: "Curated normal-photo example; no observed damage claim."
+        responderNote: ""
       }
     },
     confidence: {
@@ -212,7 +212,7 @@ const rawDemoScenes = [
         severity: 0,
         accessStatus: "open",
         hazards: [],
-        responderNote: "Curated normal-photo example; no observed damage claim."
+        responderNote: ""
       }
     },
     confidence: {

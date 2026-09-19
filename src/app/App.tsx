@@ -44,6 +44,7 @@ import {
   getExportFilename
 } from "../features/export/export-builders";
 import type { SceneViewportHandle } from "../features/scene/SceneViewport";
+import { createResponderSummary } from "../features/scene/disaster-plan";
 import { selectActiveProject, selectCatalog } from "../store/selectors";
 import { useSceneStore } from "../store/scene-store";
 import { formatCoordinate, formatDimension, getProjectCentroid } from "../../shared/geo";
@@ -54,12 +55,12 @@ const sceneModeOptions = [
   { value: "base", label: "Base" },
   { value: "scorched", label: "Scorched Nebraska" },
   { value: "disaster", label: "Disaster Response" }
-] satisfies Array<{ value: SceneMode; label: string }>;
+] satisfies Array<{ value: SceneMode; label: string; }>;
 
 const viewportOptions = [
   { value: "map", label: "Map" },
   { value: "scene", label: "3D" }
-] satisfies Array<{ value: ViewportMode; label: string }>;
+] satisfies Array<{ value: ViewportMode; label: string; }>;
 
 const GisMap = lazy(() =>
   import("../features/map/GisMap").then((module) => ({ default: module.GisMap }))
@@ -74,16 +75,16 @@ const traitRows: Array<{
   label: string;
   format?: (value: BuildingTraits[keyof BuildingTraits]) => string;
 }> = [
-  { key: "buildingType", label: "Building type", format: formatLabel },
-  { key: "floors", label: "Floors", format: String },
-  { key: "heightM", label: "Height", format: (value) => `${String(value)} m` },
-  { key: "material", label: "Material", format: formatLabel },
-  { key: "roofType", label: "Roof type", format: formatLabel },
-  { key: "windowPattern", label: "Window pattern", format: formatLabel },
-  { key: "entrancePosition", label: "Entrance", format: formatLabel }
-];
+    { key: "buildingType", label: "Building type", format: formatLabel },
+    { key: "floors", label: "Floors", format: String },
+    { key: "heightM", label: "Height", format: (value) => `${String(value)} m` },
+    { key: "material", label: "Material", format: formatLabel },
+    { key: "roofType", label: "Roof type", format: formatLabel },
+    { key: "windowPattern", label: "Window pattern", format: formatLabel },
+    { key: "entrancePosition", label: "Entrance", format: formatLabel }
+  ];
 
-const traitOptions: Partial<Record<keyof BuildingTraits, Array<{ value: string; label: string }>>> = {
+const traitOptions: Partial<Record<keyof BuildingTraits, Array<{ value: string; label: string; }>>> = {
   buildingType: ["institutional", "academic", "warehouse", "office", "mixed-use"].map(option),
   material: ["brick", "concrete", "glass", "siding", "metal"].map(option),
   roofType: ["flat", "gable", "hip"].map(option),
@@ -113,6 +114,7 @@ export function App() {
   const loadDemoScene = useSceneStore((state) => state.loadDemoScene);
   const setSceneMode = useSceneStore((state) => state.setSceneMode);
   const updateScorchedSettings = useSceneStore((state) => state.updateScorchedSettings);
+  const updateDisasterSettings = useSceneStore((state) => state.updateDisasterSettings);
   const setAddressDraft = useSceneStore((state) => state.setAddressDraft);
   const addEvidenceFiles = useSceneStore((state) => state.addEvidenceFiles);
   const removeEvidencePhoto = useSceneStore((state) => state.removeEvidencePhoto);
@@ -143,6 +145,7 @@ export function App() {
   const generationState = useSceneStore((state) => state.generationState);
   const footprintCentroid = getProjectCentroid(activeProject);
   const facadeOrientation = activeProject.footprint.facadeOrientation;
+  const disasterSummary = createResponderSummary(activeProject.scenario.disaster);
   const exportDisabledReason = activeProject.footprint.feature.geometry.coordinates[0]?.length >= 4
     ? ""
     : "A valid WGS84 footprint is required before exporting.";
@@ -758,6 +761,105 @@ export function App() {
             </section>
           ) : null}
 
+          {sceneMode === "disaster" ? (
+            <section className="rail-section">
+              <SectionHeader title="Disaster Response" />
+              <div className="scenario-panel">
+                <span className="scenario-panel__label disaster">Operational scenario</span>
+                <FieldWrapper label="Scenario status">
+                  <select
+                    aria-label="Scenario status"
+                    onChange={(event) => updateDisasterSettings({ status: event.currentTarget.value as "simulated" | "observed" | "inferred" | "unknown" })}
+                    value={activeProject.scenario.disaster.status}
+                  >
+                    <option value="simulated">Simulated scenario</option>
+                    <option value="observed">Observed conditions</option>
+                    <option value="inferred">Inferred from analysis</option>
+                    <option value="unknown">Unknown / Not assessed</option>
+                  </select>
+                </FieldWrapper>
+                <FieldWrapper label="Damage type">
+                  <select
+                    aria-label="Damage type"
+                    onChange={(event) => updateDisasterSettings({ damageType: event.currentTarget.value as "none" | "fire" | "flood" | "wind" | "structural" })}
+                    value={activeProject.scenario.disaster.damageType}
+                  >
+                    <option value="none">None / No damage</option>
+                    <option value="fire">Fire damage</option>
+                    <option value="flood">Flood damage</option>
+                    <option value="wind">Wind damage</option>
+                    <option value="structural">Structural damage</option>
+                  </select>
+                </FieldWrapper>
+                <FieldWrapper label="Severity">
+                  <div className="scenario-slider">
+                    <input
+                      aria-label="Damage severity"
+                      max="1"
+                      min="0"
+                      onChange={(event) => updateDisasterSettings({ severity: Number(event.currentTarget.value) })}
+                      step="0.05"
+                      type="range"
+                      value={activeProject.scenario.disaster.severity}
+                    />
+                    <output>{Math.round(activeProject.scenario.disaster.severity * 100)}%</output>
+                  </div>
+                </FieldWrapper>
+                <FieldWrapper label="Access status">
+                  <select
+                    aria-label="Access status"
+                    onChange={(event) => updateDisasterSettings({ accessStatus: event.currentTarget.value as "open" | "limited" | "blocked" | "unknown" })}
+                    value={activeProject.scenario.disaster.accessStatus}
+                  >
+                    <option value="open">Accessible</option>
+                    <option value="limited">Limited access</option>
+                    <option value="blocked">Blocked</option>
+                    <option value="unknown">Unknown</option>
+                  </select>
+                </FieldWrapper>
+                <label className="disaster-checkbox">
+                  <input
+                    aria-label="Primary entrance blocked"
+                    checked={activeProject.scenario.disaster.blockedEntrances?.includes("primary") ?? false}
+                    onChange={(event) => updateDisasterSettings({
+                      blockedEntrances: event.currentTarget.checked ? ["primary"] : []
+                    })}
+                    type="checkbox"
+                  />
+                  <span>Primary entrance blocked</span>
+                </label>
+                <FieldWrapper label="Hazards">
+                  <input
+                    aria-label="Hazard tags"
+                    onChange={(event) => updateDisasterSettings({
+                      hazards: event.currentTarget.value.split(",").map((tag) => tag.trim()).filter(Boolean)
+                    })}
+                    placeholder="e.g., unstable roof, debris field, structural compromise"
+                    value={activeProject.scenario.disaster.hazards.join(", ")}
+                  />
+                </FieldWrapper>
+                <FieldWrapper label="Responder note">
+                  <textarea
+                    aria-label="Responder note"
+                    onChange={(event) => updateDisasterSettings({ responderNote: event.currentTarget.value })}
+                    value={activeProject.scenario.disaster.responderNote || disasterSummary}
+                  />
+                </FieldWrapper>
+                <p className="disaster-caveat">Visible or entered conditions require verification and are not a structural safety determination.</p>
+                <div className="scenario-metadata disaster-metadata">
+                  <div><span>Status</span><strong className="status-label">{activeProject.scenario.disaster.status === "observed" ? "⚠ Observed" : "→ " + activeProject.scenario.disaster.status}</strong></div>
+                  <div><span>Damage</span><strong>{activeProject.scenario.disaster.damageType}</strong></div>
+                  <div><span>Access</span><strong className={`access-${activeProject.scenario.disaster.accessStatus}`}>{activeProject.scenario.disaster.accessStatus}</strong></div>
+                </div>
+                <div className="disaster-legend" aria-label="Disaster overlay legend">
+                  <span><i className="disaster-legend__hazard" /> Hazard zone</span>
+                  <span><i className="disaster-legend__access" /> Blocked access</span>
+                  <span><i className="disaster-legend__damage" /> Damage marker</span>
+                </div>
+              </div>
+            </section>
+          ) : null}
+
           <section className="rail-section rail-section--grow">
             <SectionHeader title="Provenance" />
             <div className="provenance-panel">
@@ -804,7 +906,7 @@ export function App() {
   );
 }
 
-function MapLoadingFallback({ coordinate }: { coordinate: [number, number] }) {
+function MapLoadingFallback({ coordinate }: { coordinate: [number, number]; }) {
   return (
     <div aria-label="GIS map loading" className="gis-map-stage gis-map-stage--loading">
       <div className="north-indicator" aria-label="North indicator">

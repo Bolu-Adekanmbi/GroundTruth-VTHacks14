@@ -110,6 +110,7 @@ export const disasterSettingsSchema = z.object({
   damageType: z.enum(["none", "fire", "flood", "wind", "structural"]),
   severity: confidenceValueSchema,
   accessStatus: z.enum(["open", "limited", "blocked", "unknown"]),
+  blockedEntrances: z.array(z.string()).optional(),
   hazards: z.array(z.string()),
   responderNote: z.string()
 });

@@ -104,8 +104,8 @@ code {
   padding: 14px;
 }
 
-.section-body > *,
-.generation-panel > *,
+.section-body>*,
+.generation-panel>*,
 .generation-panel li,
 .capture-note {
   min-width: 0;
@@ -258,7 +258,7 @@ code {
   padding: 10px;
 }
 
-.generation-panel > strong {
+.generation-panel>strong {
   color: var(--ink);
   font-size: 13px;
   line-height: 1.35;
@@ -403,7 +403,7 @@ code {
   gap: 5px;
 }
 
-.trait-row--editor > span {
+.trait-row--editor>span {
   color: var(--ink);
   font-size: 12px;
   font-weight: 600;
@@ -624,6 +624,55 @@ code {
   box-shadow: 0 0 0 2px var(--gis);
 }
 
+.map-disaster-marker {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+  background: var(--danger);
+  color: #ffffff;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.map-disaster-legend {
+  position: absolute;
+  z-index: 3;
+  right: 14px;
+  bottom: 44px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: rgb(255 255 255 / 92%);
+  color: var(--ink-muted);
+  font-size: 11px;
+  padding: 6px 8px;
+}
+
+.map-disaster-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.map-disaster-legend i {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--danger);
+}
+
+.map-disaster-legend strong {
+  color: var(--danger);
+  font-family: var(--font-mono);
+  font-weight: 600;
+}
+
 .orientation-cue {
   position: absolute;
   top: 56px;
@@ -748,7 +797,7 @@ code {
   background: #b9e9dc;
 }
 
-.scene-stage > svg {
+.scene-stage>svg {
   position: absolute;
   top: 16px;
   left: 16px;
@@ -948,6 +997,10 @@ code {
   color: var(--danger);
 }
 
+.scene-stage--disaster {
+  filter: hue-rotate(0deg) saturate(1);
+}
+
 .scenario-panel {
   display: grid;
   gap: 10px;
@@ -966,7 +1019,7 @@ code {
   gap: 4px;
 }
 
-.scenario-panel .field-wrapper > span {
+.scenario-panel .field-wrapper>span {
   color: var(--ink);
   font-size: 12px;
   font-weight: 600;
@@ -1019,6 +1072,107 @@ code {
   color: var(--ink);
   font-size: 12px;
   text-align: right;
+}
+
+.disaster-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.disaster-checkbox input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--danger);
+}
+
+.disaster-caveat {
+  margin: 0;
+  border-left: 3px solid var(--danger);
+  background: #fff4f2;
+  color: var(--ink-muted);
+  font-size: 12px;
+  line-height: 1.35;
+  padding: 8px 10px;
+}
+
+.disaster-legend {
+  display: grid;
+  gap: 6px;
+  border-top: 1px solid var(--line);
+  color: var(--ink-muted);
+  font-size: 12px;
+  padding-top: 9px;
+}
+
+.disaster-legend span {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.disaster-legend i {
+  width: 11px;
+  height: 11px;
+  border-radius: 2px;
+}
+
+.disaster-legend__hazard { background: #e67e22; }
+.disaster-legend__access { background: #c0392b; }
+.disaster-legend__damage { background: #e74c3c; }
+
+.scenario-panel__label.disaster {
+  color: var(--danger);
+}
+
+[data-mode="disaster"] .scenario-slider input {
+  accent-color: var(--danger);
+}
+
+.scenario-panel select,
+.scenario-panel textarea {
+  min-width: 0;
+  height: auto;
+  padding: 6px 8px;
+  font-size: 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 2px;
+  background-color: var(--surface);
+  color: var(--ink);
+}
+
+.scenario-panel textarea {
+  height: 56px;
+  resize: none;
+  font-family: var(--font-mono);
+  line-height: 1.4;
+}
+
+.disaster-metadata {
+  border-top-color: var(--danger);
+  opacity: 0.9;
+}
+
+.status-label {
+  color: var(--danger);
+  font-weight: 700;
+}
+
+.access-blocked {
+  color: var(--danger);
+  font-weight: 700;
+}
+
+.access-limited {
+  color: var(--action);
+}
+
+.access-open,
+.access-unknown {
+  color: var(--ink-muted);
 }
 
 @media (prefers-reduced-motion: reduce) {

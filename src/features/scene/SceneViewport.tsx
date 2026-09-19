@@ -26,6 +26,7 @@ import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import type { SceneProject } from "../../../shared/scene-schema";
 import { buildScenePlan, getMaterialColor, type ScenePlan } from "./scene-plan";
 import { buildScorchedPlan, type ScorchedPlan, type ScorchedTransform } from "./scorched-plan";
+import { buildDisasterPlan, type DisasterPlan } from "./disaster-plan";
 
 export interface SceneViewportHandle {
   fitBuilding: () => void;
@@ -34,13 +35,17 @@ export interface SceneViewportHandle {
 
 type CameraCommand = "fit" | "reset";
 
-export const SceneViewport = forwardRef<SceneViewportHandle, { project: SceneProject }>(
+export const SceneViewport = forwardRef<SceneViewportHandle, { project: SceneProject; }>(
   function SceneViewport({ project }, ref) {
-    const [command, setCommand] = useState<{ id: number; type: CameraCommand }>({ id: 0, type: "fit" });
+    const [command, setCommand] = useState<{ id: number; type: CameraCommand; }>({ id: 0, type: "fit" });
     const canRender = useWebGlAvailability();
     const plan = useMemo(() => buildScenePlan(project), [project]);
     const scorchedPlan = useMemo(
       () => project.scenario.activeMode === "scorched" ? buildScorchedPlan(project, plan) : null,
+      [plan, project]
+    );
+    const disasterPlan = useMemo(
+      () => project.scenario.activeMode === "disaster" ? buildDisasterPlan(project, plan) : null,
       [plan, project]
     );
 
@@ -58,14 +63,14 @@ export const SceneViewport = forwardRef<SceneViewportHandle, { project: ScenePro
     }
 
     return (
-      <div className={`scene-stage${scorchedPlan ? " scene-stage--scorched" : ""}`} aria-label="Interactive 3D building scene">
+      <div className={`scene-stage${scorchedPlan ? " scene-stage--scorched" : ""}${disasterPlan ? " scene-stage--disaster" : ""}`} aria-label="Interactive 3D building scene">
         <Canvas
           camera={{ fov: 42, near: 0.1, far: 2000, position: [70, 56, 70] }}
           dpr={[1, 1.75]}
           gl={{ antialias: true, powerPreference: "high-performance", preserveDrawingBuffer: true }}
           onCreated={({ gl }) => gl.setClearColor(new Color("#d8e0dc"))}
         >
-          <SceneContents command={command} plan={plan} scorchedPlan={scorchedPlan} />
+          <SceneContents command={command} plan={plan} scorchedPlan={scorchedPlan} disasterPlan={disasterPlan} />
         </Canvas>
         <div className="scene-north" aria-label="North points toward the top of the model">N</div>
         <div className="scene-scale" aria-hidden="true"><span /> 20 m</div>
@@ -74,7 +79,7 @@ export const SceneViewport = forwardRef<SceneViewportHandle, { project: ScenePro
   }
 );
 
-function SceneContents({ command, plan, scorchedPlan }: { command: { id: number; type: CameraCommand }; plan: ScenePlan; scorchedPlan: ScorchedPlan | null }) {
+function SceneContents({ command, plan, scorchedPlan, disasterPlan }: { command: { id: number; type: CameraCommand; }; plan: ScenePlan; scorchedPlan: ScorchedPlan | null; disasterPlan: DisasterPlan | null; }) {
   return (
     <>
       <ambientLight intensity={1.2} />
@@ -85,13 +90,14 @@ function SceneContents({ command, plan, scorchedPlan }: { command: { id: number;
       <Entrance plan={plan} />
       <Roof plan={plan} />
       {scorchedPlan ? <ScorchedLayers plan={scorchedPlan} /> : null}
+      {disasterPlan ? <DisasterLayers plan={disasterPlan} /> : null}
       <Ground />
       <CameraController command={command} plan={plan} />
     </>
   );
 }
 
-const BuildingMass = memo(function BuildingMass({ plan, scorched }: { plan: ScenePlan; scorched: boolean }) {
+const BuildingMass = memo(function BuildingMass({ plan, scorched }: { plan: ScenePlan; scorched: boolean; }) {
   const geometry = useMemo(() => {
     const shape = new Shape();
     plan.outline.forEach((point, index) => {
@@ -114,7 +120,7 @@ const BuildingMass = memo(function BuildingMass({ plan, scorched }: { plan: Scen
   );
 });
 
-const WindowInstances = memo(function WindowInstances({ plan, scorched }: { plan: ScenePlan; scorched: boolean }) {
+const WindowInstances = memo(function WindowInstances({ plan, scorched }: { plan: ScenePlan; scorched: boolean; }) {
   const meshRef = useRef<InstancedMesh>(null);
   const matrices = useMemo(() => {
     const object = new Object3D();
@@ -142,7 +148,7 @@ const WindowInstances = memo(function WindowInstances({ plan, scorched }: { plan
   );
 });
 
-function ScorchedLayers({ plan }: { plan: ScorchedPlan }) {
+function ScorchedLayers({ plan }: { plan: ScorchedPlan; }) {
   return (
     <group>
       <TransformInstances transforms={plan.boardedWindows} color="#76543a" geometry="board" />
@@ -164,7 +170,7 @@ function ScorchedLayers({ plan }: { plan: ScorchedPlan }) {
   );
 }
 
-function TransformInstances({ transforms, color, geometry }: { transforms: ScorchedTransform[]; color: string; geometry: "board" | "window" | "debris" }) {
+function TransformInstances({ transforms, color, geometry }: { transforms: ScorchedTransform[]; color: string; geometry: "board" | "window" | "debris"; }) {
   const meshRef = useRef<InstancedMesh>(null);
   const matrices = useMemo(() => {
     const object = new Object3D();
@@ -192,7 +198,52 @@ function TransformInstances({ transforms, color, geometry }: { transforms: Scorc
   );
 }
 
-function Entrance({ plan }: { plan: ScenePlan }) {
+function DisasterLayers({ plan }: { plan: DisasterPlan; }) {
+  return (
+    <group>
+      {/* Hazard zone glow */}
+      {plan.hazardZone.active ? (
+        <mesh position={[0, 0.2, 0]} scale={[5.5, 0.2, 5.5]}>
+          <cylinderGeometry args={[1, 1, 1, 32]} />
+          <meshStandardMaterial color="#e74c3c" opacity={0.15} transparent emissive={new Color("#e74c3c")} emissiveIntensity={0.3} />
+        </mesh>
+      ) : null}
+
+      {/* Disaster overlays */}
+      {plan.overlays.map((overlay, index) => {
+        const colorMap: Record<string, string> = {
+          "access-blocked": "#c0392b",
+          "hazard-zone": "#e67e22",
+          "damage-roof": "#e74c3c",
+          "damage-facade": "#c0392b"
+        };
+
+        return (
+          <mesh
+            key={`disaster-${index}`}
+            position={overlay.position}
+            rotation={[0, overlay.yawRad, 0]}
+            scale={overlay.scale}
+          >
+            {overlay.type === "access-blocked" ? (
+              <>
+                <boxGeometry args={[1, 1, 1]} />
+                <meshStandardMaterial color={colorMap[overlay.type]} emissive={new Color(colorMap[overlay.type])} emissiveIntensity={0.5} />
+              </>
+            ) : (
+              <>
+                <boxGeometry args={[1, 1, 0.25]} />
+                <meshStandardMaterial color={colorMap[overlay.type]} emissive={new Color(colorMap[overlay.type])} emissiveIntensity={0.35} opacity={0.72} transparent />
+              </>
+            )}
+          </mesh>
+        );
+      })}
+    </group>
+  );
+}
+
+function Entrance({ plan }: { plan: ScenePlan; }) {
   return (
     <mesh castShadow position={plan.entrance.position} rotation={[0, plan.entrance.yawRad, 0]}>
       <boxGeometry args={[3.2, 2.7, 0.42]} />
@@ -201,7 +252,7 @@ function Entrance({ plan }: { plan: ScenePlan }) {
   );
 }
 
-function Roof({ plan }: { plan: ScenePlan }) {
+function Roof({ plan }: { plan: ScenePlan; }) {
   const gableGeometry = useMemo(() => {
     const ridgeHeight = Math.min(5, Math.max(2, plan.heightM * 0.14));
     const vertices = new Float32Array([
@@ -241,7 +292,7 @@ function Ground() {
   );
 }
 
-function CameraController({ command, plan }: { command: { id: number; type: CameraCommand }; plan: ScenePlan }) {
+function CameraController({ command, plan }: { command: { id: number; type: CameraCommand; }; plan: ScenePlan; }) {
   const { camera, size } = useThree();
   const controls = useRef<OrbitControlsImpl>(null);
   const previousProjectId = useRef("");

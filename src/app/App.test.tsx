@@ -153,4 +153,18 @@ describe("App", () => {
     expect(useSceneStore.getState().activeProject.building.floors).toBe(sourceFloors);
     expect(useSceneStore.getState().activeProject.scenario.scorched.scorchIntensity).toBe(0.9);
   });
+
+  it("shows operational Disaster controls with a generated, editable responder summary", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole("radio", { name: "Disaster Response" }));
+    await user.selectOptions(screen.getByLabelText("Damage type"), "fire");
+    fireEvent.change(screen.getByLabelText("Damage severity"), { target: { value: "0.6" } });
+    await user.click(screen.getByLabelText("Primary entrance blocked"));
+
+    expect(screen.getByLabelText("Disaster overlay legend")).toBeInTheDocument();
+    expect(screen.getByDisplayValue(/Requires verification/)).toBeInTheDocument();
+    expect(useSceneStore.getState().activeProject.scenario.disaster.blockedEntrances).toEqual(["primary"]);
+  });
 });

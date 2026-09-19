@@ -35,7 +35,7 @@ export const metadataExportSchema = z.object({
     generated_scenario: z.boolean(),
     scenario_provenance: z.object({
       kind: z.enum(["base-facts", "generated-scenario"]),
-      claim: z.enum(["not-applicable", "simulated"]),
+      claim: z.enum(["not-applicable", "simulated", "observed", "inferred", "unknown"]),
       label: z.string()
     })
   })
@@ -99,6 +99,65 @@ export function buildGeoJsonExport(project: SceneProject): GeoJsonExport {
     });
   }
 
+  // Add Disaster Response features
+  if (mode === "disaster") {
+    const disaster = project.scenario.disaster;
+
+    // Add hazard zone feature if hazards are present
+    if (disaster.hazards.length > 0 && disaster.severity > 0.1) {
+      features.push({
+        type: "Feature",
+        geometry: { type: "Point", coordinates: getProjectCentroid(project) },
+        properties: {
+          scene_id: project.id,
+          scene_mode: mode,
+          feature_kind: "hazard_zone",
+          hazard_types: disaster.hazards.join("; "),
+          severity: disaster.severity,
+          status: disaster.status,
+          scenario_kind: "disaster-response"
+        }
+      });
+    }
+
+    // Add access status feature
+    if (disaster.accessStatus !== "unknown") {
+      const entrance = getEntrancePoint(project);
+      if (entrance) {
+        features.push({
+          type: "Feature",
+          geometry: { type: "Point", coordinates: entrance },
+          properties: {
+            scene_id: project.id,
+            scene_mode: mode,
+            feature_kind: "access_status",
+            access_status: disaster.accessStatus,
+            status: disaster.status,
+            scenario_kind: "disaster-response"
+          }
+        });
+      }
+    }
+
+    // Add damage assessment feature
+    if (disaster.damageType !== "none") {
+      features.push({
+        type: "Feature",
+        geometry: { type: "Point", coordinates: getProjectCentroid(project) },
+        properties: {
+          scene_id: project.id,
+          scene_mode: mode,
+          feature_kind: "damage_assessment",
+          damage_type: disaster.damageType,
+          severity: disaster.severity,
+          status: disaster.status,
+          responder_note: disaster.responderNote || "",
+          scenario_kind: "disaster-response"
+        }
+      });
+    }
+  }
+
   return geoJsonExportSchema.parse({ type: "FeatureCollection", features });
 }
 
@@ -131,7 +190,9 @@ export function buildMetadataExport(project: SceneProject, generatedAt = new Dat
       generated_scenario: project.scenario.activeMode !== "base",
       scenario_provenance: project.scenario.activeMode === "base"
         ? { kind: "base-facts", claim: "not-applicable", label: "Base building facts and evidence record" }
-        : { kind: "generated-scenario", claim: "simulated", label: "Generated scenario treatment; not source-photo evidence" }
+        : project.scenario.activeMode === "scorched"
+          ? { kind: "generated-scenario", claim: "simulated", label: "Generated scenario treatment; not source-photo evidence" }
+          : { kind: "generated-scenario", claim: project.scenario.disaster.status, label: `Disaster Response conditions (${project.scenario.disaster.status}); requires verification before operational use` }
     }
   });
 }

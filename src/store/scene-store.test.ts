@@ -150,4 +150,16 @@ describe("scene store", () => {
     expect(result.current.activeProject.scenario.scorched.scorchIntensity).toBe(0.42);
     expect(result.current.activeProject.scenario.activeMode).toBe("scorched");
   });
+
+  it("keeps Disaster settings separate from Scorched settings and records the submitted claim", () => {
+    const { result } = renderHook(() => useSceneStore());
+    const originalScorch = result.current.activeProject.scenario.scorched.scorchIntensity;
+
+    act(() => result.current.setSceneMode("disaster"));
+    act(() => result.current.updateDisasterSettings({ status: "inferred", accessStatus: "blocked", blockedEntrances: ["primary"] }));
+
+    expect(result.current.activeProject.scenario.scorched.scorchIntensity).toBe(originalScorch);
+    expect(result.current.activeProject.scenario.disaster.blockedEntrances).toEqual(["primary"]);
+    expect(result.current.activeProject.provenance.find((record) => record.target === "scenario.disaster")?.claim).toBe("inferred");
+  });
 });

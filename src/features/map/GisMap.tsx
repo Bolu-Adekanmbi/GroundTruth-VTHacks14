@@ -42,6 +42,10 @@ export function GisMap({ project, onSetManualLocation }: GisMapProps) {
   const selectedProjectIdRef = useRef("");
   const style = useMemo(() => getConfiguredMapStyle(), []);
   const displayCoordinate = cursorCoordinate ?? centroid;
+  const disaster = project.scenario.activeMode === "disaster" ? project.scenario.disaster : null;
+  const hasOperationalMarker = Boolean(
+    disaster && (disaster.damageType !== "none" || disaster.hazards.length > 0 || disaster.accessStatus === "blocked" || disaster.blockedEntrances?.includes("primary"))
+  );
 
   useEffect(() => {
     if (!isMapReady) {
@@ -143,6 +147,11 @@ export function GisMap({ project, onSetManualLocation }: GisMapProps) {
         <Marker anchor="center" latitude={centroid[1]} longitude={centroid[0]}>
           <span aria-label="Selected footprint centroid" className="map-centroid-marker" />
         </Marker>
+        {hasOperationalMarker ? (
+          <Marker anchor="bottom" latitude={centroid[1]} longitude={centroid[0]}>
+            <span aria-label="Disaster operational conditions" className="map-disaster-marker">!</span>
+          </Marker>
+        ) : null}
       </Map>
 
       <div className="north-indicator" aria-label="North indicator">
@@ -160,6 +169,12 @@ export function GisMap({ project, onSetManualLocation }: GisMapProps) {
         <span />
       </div>
       {mapWarning ? <div className="map-warning">{mapWarning}</div> : null}
+      {disaster ? (
+        <div className="map-disaster-legend" aria-label="Disaster map legend">
+          <span><i /> Operational conditions</span>
+          <strong>{disaster.status}</strong>
+        </div>
+      ) : null}
     </div>
   );
 }
