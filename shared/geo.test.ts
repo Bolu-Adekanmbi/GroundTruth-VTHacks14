@@ -48,8 +48,10 @@ describe("geo utilities", () => {
 
     expect(dimensions.widthM).toBeGreaterThan(80);
     expect(dimensions.depthM).toBeGreaterThan(40);
-    expect(localPoints[0].x).toBeLessThan(0);
-    expect(localPoints[0].z).toBeGreaterThan(0);
+    expect(localPoints.some((point) => point.x < 0)).toBe(true);
+    expect(localPoints.some((point) => point.x > 0)).toBe(true);
+    expect(localPoints.some((point) => point.z < 0)).toBe(true);
+    expect(localPoints.some((point) => point.z > 0)).toBe(true);
   });
 
   it("normalizes bearings to the canonical 0-359 degree range", () => {

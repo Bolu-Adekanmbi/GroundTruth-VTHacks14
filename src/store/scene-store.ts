@@ -387,8 +387,9 @@ async function resolveCustomScene(project: SceneProject, addressDraft: string, s
     warnings.push("Geocoding request failed; manual placement required.");
   }
 
-  try {
-    const footprintResponse = await fetchWithTimeout("/api/footprint", {
+  if (locationResolved) {
+    try {
+      const footprintResponse = await fetchWithTimeout("/api/footprint", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -399,9 +400,9 @@ async function resolveCustomScene(project: SceneProject, addressDraft: string, s
         depthM: nextProject.footprint.depthM,
         bearingDeg: nextProject.footprint.bearingDeg
       })
-    }, signal);
+      }, signal);
 
-    if (footprintResponse.ok) {
+      if (footprintResponse.ok) {
       const payload = (await footprintResponse.json()) as {
         data: Pick<SceneProject["footprint"], "feature" | "source" | "widthM" | "depthM" | "bearingDeg"> & {
           confidence: number;
@@ -443,8 +444,11 @@ async function resolveCustomScene(project: SceneProject, addressDraft: string, s
       });
       footprintResolved = true;
     }
-  } catch {
-    warnings.push("Footprint request failed; manual rectangle remains active.");
+    } catch {
+      warnings.push("Footprint request failed; manual rectangle remains active.");
+    }
+  } else {
+    warnings.push("No resolved location is available; editable manual rectangle remains active.");
   }
 
   const steps: GenerationStep[] = [

@@ -50,7 +50,7 @@ describe("App", () => {
     expect(screen.getByText("Willard Building east view")).toBeInTheDocument();
     expect(screen.getByText("Concrete")).toBeInTheDocument();
     expect(screen.getByText("83% evidence-backed")).toBeInTheDocument();
-    expect(screen.getAllByText("40.79576, -77.86442").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("40.7958, -77.8644").length).toBeGreaterThan(0);
   });
 
   it("accepts custom uploads, rejects invalid files, and keeps truthful generation status", async () => {

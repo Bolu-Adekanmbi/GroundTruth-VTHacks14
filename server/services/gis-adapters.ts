@@ -215,7 +215,13 @@ async function lookupOsmFootprint(center: LngLat, options: GisAdapterOptions) {
     }
 
     const payload = (await response.json()) as { elements?: OverpassElement[] };
-    const way = payload.elements?.find((element) => element.type === "way" && element.geometry?.length);
+    const candidates = payload.elements?.filter(
+      (element): element is OverpassElement & { type: "way"; geometry: Array<{ lon: number; lat: number }>; } =>
+        element.type === "way" && Boolean(element.geometry && element.geometry.length >= 4)
+    ) ?? [];
+    const way = candidates
+      .map((element) => ({ element, distanceM: distanceToBuildingMeters(center, element.geometry) }))
+      .sort((left, right) => left.distanceM - right.distanceM)[0]?.element;
 
     if (!way?.geometry || way.geometry.length < 4) {
       return undefined;
@@ -249,6 +255,32 @@ async function lookupOsmFootprint(center: LngLat, options: GisAdapterOptions) {
   }
 }
 
+function distanceToBuildingMeters(center: LngLat, geometry: Array<{ lon: number; lat: number }>) {
+  const ring = geometry.map((point) => [point.lon, point.lat] satisfies LngLat);
+  if (isPointInPolygon(center, ring)) return 0;
+  return Math.min(...ring.map((point) => distanceMeters(center, point)));
+}
+
+function isPointInPolygon([longitude, latitude]: LngLat, ring: LngLat[]) {
+  let inside = false;
+  for (let index = 0, previous = ring.length - 1; index < ring.length; previous = index++) {
+    const [currentLongitude, currentLatitude] = ring[index];
+    const [previousLongitude, previousLatitude] = ring[previous];
+    const intersects = (currentLatitude > latitude) !== (previousLatitude > latitude) &&
+      longitude < (previousLongitude - currentLongitude) * (latitude - currentLatitude) /
+        (previousLatitude - currentLatitude) + currentLongitude;
+    if (intersects) inside = !inside;
+  }
+  return inside;
+}
+
+function distanceMeters([leftLongitude, leftLatitude]: LngLat, [rightLongitude, rightLatitude]: LngLat) {
+  const latitudeRadians = ((leftLatitude + rightLatitude) / 2) * Math.PI / 180;
+  const eastM = (rightLongitude - leftLongitude) * 111_320 * Math.cos(latitudeRadians);
+  const northM = (rightLatitude - leftLatitude) * 110_540;
+  return Math.hypot(eastM, northM);
+}
+
 async function fetchWithTimeout(fetcher: typeof fetch, url: URL, env: NodeJS.ProcessEnv = process.env) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), requestTimeoutMs);
@@ -267,7 +299,7 @@ async function fetchWithTimeout(fetcher: typeof fetch, url: URL, env: NodeJS.Pro
 }
 
 function isLiveGisEnabled(env: NodeJS.ProcessEnv = process.env) {
-  return env.GROUNDTRUTH_ENABLE_LIVE_GIS === "true";
+  return env.GROUNDTRUTH_ENABLE_LIVE_GIS !== "false";
 }
 
 function normalizeAddress(address: string) {

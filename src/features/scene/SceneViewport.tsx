@@ -285,7 +285,10 @@ function Roof({ plan }: { plan: ScenePlan; }) {
   useEffect(() => () => flatGeometry.dispose(), [flatGeometry]);
   useEffect(() => () => gableGeometry.dispose(), [gableGeometry]);
 
-  if (plan.roofType === "flat") {
+  // A bounding-box gable overhangs an irregular OSM footprint. Preserve the
+  // procedural gable only for simple rectangular plans; otherwise keep the roof
+  // on the authoritative ground polygon.
+  if (plan.roofType === "flat" || plan.outline.length !== 4) {
     return <mesh castShadow geometry={flatGeometry} position={[0, plan.heightM, 0]} rotation={[-Math.PI / 2, 0, 0]}><meshStandardMaterial color="#4d5755" roughness={0.86} /></mesh>;
   }
 

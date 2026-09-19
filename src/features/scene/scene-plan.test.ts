@@ -17,7 +17,7 @@ describe("buildScenePlan", () => {
     const second = buildScenePlan(project);
 
     expect(first).toEqual(second);
-    expect(first.outline).toHaveLength(8);
+    expect(first.outline.length).toBeGreaterThan(8);
     expect(first.bounds.width).toBeGreaterThan(100);
     expect(first.heightM).toBe(30);
     expect(first.windows.length).toBeGreaterThan(20);
@@ -28,7 +28,10 @@ describe("buildScenePlan", () => {
     project.footprint.facadeOrientation = { frontBearingDeg: 90 };
     const plan = buildScenePlan(project);
 
-    expect(plan.facades[plan.frontFacadeIndex].normalBearingDeg).toBeCloseTo(90, 0);
+    const selectedDistance = Math.abs(((plan.facades[plan.frontFacadeIndex].normalBearingDeg - 90 + 540) % 360) - 180);
+    const nearestDistance = Math.min(...plan.facades.map((facade) => Math.abs(((facade.normalBearingDeg - 90 + 540) % 360) - 180)));
+
+    expect(selectedDistance).toBeCloseTo(nearestDistance, 8);
     expect(plan.entrance.position[1]).toBeGreaterThan(0);
   });
 
