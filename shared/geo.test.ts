@@ -19,8 +19,8 @@ describe("geo utilities", () => {
     const burruss = demoScenes.find((scene) => scene.id === "burruss-hall")!;
     const firstCoordinate = getOuterRing(burruss)[0];
 
-    expect(firstCoordinate).toEqual([-80.42412, 37.22914]);
-    expect(formatCoordinate(firstCoordinate)).toBe("37.22914, -80.42412");
+    expect(firstCoordinate).toEqual([-80.4242692, 37.2290902]);
+    expect(formatCoordinate(firstCoordinate)).toBe("37.22909, -80.42427");
   });
 
   it("computes bounds and centroids for both fixture footprints", () => {
@@ -28,10 +28,10 @@ describe("geo utilities", () => {
     const willard = demoScenes.find((scene) => scene.id === "willard-building")!;
 
     expect(getBounds(getOuterRing(burruss))).toEqual({
-      west: -80.42439,
-      south: 37.22863,
-      east: -80.42265,
-      north: 37.22914
+      west: -80.4243794,
+      south: 37.2285389,
+      east: -80.4231069,
+      north: 37.2295553
     });
     expect(getProjectCentroid(burruss)[0]).toBeCloseTo(-80.42351, 3);
     expect(getProjectCentroid(burruss)[1]).toBeCloseTo(37.22886, 3);

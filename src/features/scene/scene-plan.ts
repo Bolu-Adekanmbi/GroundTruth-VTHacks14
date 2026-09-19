@@ -41,6 +41,7 @@ export interface ScenePlan {
   heightM: number;
   floors: number;
   material: BuildingTraits["material"];
+  facadeColor?: string;
   roofType: BuildingTraits["roofType"];
   facades: FacadePlan[];
   windows: WindowPlan[];
@@ -60,8 +61,8 @@ const materialPalette: Record<BuildingTraits["material"], string> = {
   metal: "#8b9792"
 };
 
-export function getMaterialColor(material: BuildingTraits["material"]) {
-  return materialPalette[material];
+export function getMaterialColor(material: BuildingTraits["material"], facadeColor?: string) {
+  return facadeColor ?? materialPalette[material];
 }
 
 export function buildScenePlan(project: SceneProject): ScenePlan {
@@ -117,6 +118,7 @@ export function buildScenePlan(project: SceneProject): ScenePlan {
     heightM,
     floors: project.building.floors,
     material: project.building.material,
+    facadeColor: project.building.facadeColor,
     roofType: project.building.roofType,
     facades: markedFacades,
     windows,
@@ -136,10 +138,15 @@ export function buildScenePlan(project: SceneProject): ScenePlan {
 function buildWindows(facades: FacadePlan[], traits: BuildingTraits, heightM: number) {
   const floorHeight = heightM / traits.floors;
   const floorIndices = Array.from({ length: traits.floors }, (_, index) => index);
+  const frontFacadeLength = facades.find((facade) => facade.isFront)?.lengthM ?? 1;
 
   return facades.flatMap((facade) => {
     const spacing = traits.windowPattern === "sparse" ? 6 : traits.windowPattern === "vertical-bands" ? 4 : 4.8;
-    const columns = Math.max(1, Math.min(22, Math.floor(facade.lengthM / spacing)));
+    const inferredColumns = Math.floor(facade.lengthM / spacing);
+    const requestedColumns = traits.windowColumns
+      ? Math.round(traits.windowColumns * facade.lengthM / frontFacadeLength)
+      : inferredColumns;
+    const columns = Math.max(1, Math.min(40, requestedColumns));
     const windowWidth = Math.min(2.1, Math.max(0.75, (facade.lengthM - 2) / columns - 0.55));
     const direction = normalizeVector({
       x: facade.end.x - facade.start.x,

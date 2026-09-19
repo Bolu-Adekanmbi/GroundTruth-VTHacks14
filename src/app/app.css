@@ -515,6 +515,52 @@ code {
   font-style: normal;
 }
 
+.vision-panel {
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--gis);
+  padding: 10px;
+}
+
+.vision-panel > div:first-child {
+  display: grid;
+  gap: 2px;
+}
+
+.vision-panel span,
+.vision-panel small,
+.vision-panel__error {
+  color: var(--ink-muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.vision-panel__error {
+  color: var(--danger);
+  margin: 0;
+}
+
+.vision-suggestion {
+  display: grid;
+  gap: 7px;
+}
+
+.vision-suggestion p {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.vision-suggestion i {
+  border: 1px solid var(--line-strong);
+  display: inline-block;
+  height: 12px;
+  margin-right: 6px;
+  vertical-align: -1px;
+  width: 12px;
+}
+
 .center-workspace {
   display: grid;
   align-self: start;

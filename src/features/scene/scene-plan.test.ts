@@ -54,5 +54,15 @@ describe("buildScenePlan", () => {
   it("keeps material family selection deterministic", () => {
     expect(getMaterialColor("brick")).toBe("#8f4f3f");
     expect(getMaterialColor("concrete")).toBe("#b7b1a4");
+    expect(getMaterialColor("brick", "#9a5b45")).toBe("#9a5b45");
+  });
+
+  it("maps a visible-facade window estimate into procedural density", () => {
+    const project = demoProject("willard-building");
+    project.building.windowColumns = 12;
+    const plan = buildScenePlan(project);
+    const frontWindows = plan.windows.filter((window) => window.facadeIndex === plan.frontFacadeIndex);
+
+    expect(frontWindows).toHaveLength(12 * project.building.floors);
   });
 });

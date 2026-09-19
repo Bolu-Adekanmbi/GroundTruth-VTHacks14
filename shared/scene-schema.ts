@@ -67,7 +67,11 @@ export const buildingTraitsSchema = z.object({
   material: z.enum(["brick", "concrete", "glass", "siding", "metal"]),
   roofType: z.enum(["flat", "gable", "hip"]),
   windowPattern: z.enum(["regular", "vertical-bands", "mixed", "sparse"]),
-  entrancePosition: z.enum(["north", "south", "east", "west", "corner", "unknown"])
+  entrancePosition: z.enum(["north", "south", "east", "west", "corner", "unknown"]),
+  // These optional controls are visual facade overrides. They are deliberately
+  // separate from the GIS footprint and remain editable after a vision suggestion.
+  facadeColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+  windowColumns: z.number().int().min(1).max(40).optional()
 });
 
 const confidenceValueSchema = z.number().min(0).max(1);

@@ -105,6 +105,33 @@ export const extractTraitsResponseSchema = z.object({
   warnings: z.array(z.string())
 });
 
+export const visionSuggestionSchema = z.object({
+  traits: buildingTraitsSchema,
+  dominantFacadeColor: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+  dominantFacadeColorLabel: z.string().min(1),
+  accentColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+  floorsRange: z.object({ min: z.number().int().positive(), max: z.number().int().positive() }),
+  estimatedWindowColumns: z.number().int().min(1).max(40),
+  estimatedWindowsPerFloor: z.number().int().min(1).max(40),
+  visibleFacadeBearing: z.number().min(0).lt(360).optional(),
+  fieldConfidence: z.object({
+    color: z.number().min(0).max(1),
+    windows: z.number().min(0).max(1),
+    floors: z.number().min(0).max(1),
+    roof: z.number().min(0).max(1)
+  }),
+  confidence: z.number().min(0).max(1),
+  assumptions: z.array(z.string()).min(1),
+  warnings: z.array(z.string())
+});
+
+const visionImageSchema = z.object({
+  dataUrl: z.string().regex(/^data:image\/(jpeg|png|webp);base64,/).max(2_000_000)
+});
+
+export const visionSuggestRequestSchema = z.object({ images: z.array(visionImageSchema).min(1).max(3) });
+export const visionSuggestResponseSchema = z.object({ ok: z.literal(true), data: visionSuggestionSchema, source: apiSourceSchema });
+
 export type HealthResponse = z.infer<typeof healthResponseSchema>;
 export type ApiFailure = z.infer<typeof apiFailureSchema>;
 export type DemoSceneSummary = z.infer<typeof demoSceneSummarySchema>;
@@ -118,3 +145,5 @@ export type FootprintResponse = z.infer<typeof footprintResponseSchema>;
 export type FootprintResult = z.infer<typeof footprintResultSchema>;
 export type ExtractTraitsRequest = z.infer<typeof extractTraitsRequestSchema>;
 export type ExtractTraitsResponse = z.infer<typeof extractTraitsResponseSchema>;
+export type VisionSuggestion = z.infer<typeof visionSuggestionSchema>;
+export type VisionSuggestResponse = z.infer<typeof visionSuggestResponseSchema>;

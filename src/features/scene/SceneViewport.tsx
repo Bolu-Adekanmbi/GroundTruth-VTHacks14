@@ -115,7 +115,7 @@ const BuildingMass = memo(function BuildingMass({ plan, scorched }: { plan: Scen
 
   return (
     <mesh castShadow geometry={geometry} receiveShadow rotation={[-Math.PI / 2, 0, 0]}>
-      <meshStandardMaterial color={scorched ? "#4c403b" : getMaterialColor(plan.material)} metalness={plan.material === "metal" ? 0.42 : 0.05} roughness={0.9} />
+      <meshStandardMaterial color={scorched ? "#4c403b" : getMaterialColor(plan.material, plan.facadeColor)} metalness={plan.material === "metal" ? 0.42 : 0.05} roughness={0.9} />
     </mesh>
   );
 });

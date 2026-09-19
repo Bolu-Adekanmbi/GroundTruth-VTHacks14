@@ -28,6 +28,7 @@ import {
   ZoomOut
 } from "lucide-react";
 import type { BuildingTraits, SceneMode } from "../../shared/scene-schema";
+import type { VisionSuggestion } from "../../shared/api-schema";
 import { Button } from "../components/ui/Button";
 import { ErrorBoundary } from "../components/ui/ErrorBoundary";
 import { FieldWrapper } from "../components/ui/FieldWrapper";
@@ -37,6 +38,7 @@ import { SegmentedControl } from "../components/ui/SegmentedControl";
 import { StatusIndicator } from "../components/ui/StatusIndicator";
 import { Tooltip } from "../components/ui/Tooltip";
 import { PHOTO_LIMITS } from "../features/capture/evidence-workflow";
+import { prepareVisionImages } from "../features/capture/vision-workflow";
 import {
   buildGeoJsonExport,
   buildMetadataExport,
@@ -140,6 +142,9 @@ export function App() {
   const [customLatitude, setCustomLatitude] = useState("");
   const [customLongitude, setCustomLongitude] = useState("");
   const [locationSuggestions, setLocationSuggestions] = useState<Array<{ address: string; longitude: number; latitude: number }>>([]);
+  const [visionSuggestion, setVisionSuggestion] = useState<VisionSuggestion | null>(null);
+  const [visionError, setVisionError] = useState("");
+  const [visionPending, setVisionPending] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const sceneViewportRef = useRef<SceneViewportHandle>(null);
   const selectedSuggestionRef = useRef("");
@@ -209,6 +214,42 @@ export function App() {
     }
 
     resetSession();
+  }
+
+  async function handleVisionSuggestion() {
+    setVisionPending(true);
+    setVisionError("");
+    setVisionSuggestion(null);
+    try {
+      const images = await prepareVisionImages(activeProject.evidence);
+      const response = await fetch("/api/vision/suggest", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ images })
+      });
+      const payload = await response.json() as { data?: VisionSuggestion; error?: { message?: string; }; };
+      if (!response.ok || !payload.data) throw new Error(payload.error?.message ?? "Vision suggestions are unavailable.");
+      setVisionSuggestion(payload.data);
+    } catch (error) {
+      setVisionError(error instanceof Error ? error.message : "Vision suggestions are unavailable.");
+    } finally {
+      setVisionPending(false);
+    }
+  }
+
+  function applyVisionSuggestion() {
+    if (!visionSuggestion) return;
+    const { traits } = visionSuggestion;
+    updateBuildingTrait("buildingType", traits.buildingType);
+    updateBuildingTrait("floors", traits.floors);
+    updateBuildingTrait("heightM", traits.heightM);
+    updateBuildingTrait("material", traits.material);
+    updateBuildingTrait("roofType", traits.roofType);
+    updateBuildingTrait("windowPattern", traits.windowPattern);
+    updateBuildingTrait("entrancePosition", traits.entrancePosition);
+    updateBuildingTrait("facadeColor", visionSuggestion.dominantFacadeColor.toUpperCase());
+    updateBuildingTrait("windowColumns", visionSuggestion.estimatedWindowColumns);
+    setVisionSuggestion(null);
   }
 
   async function handleDownload(format: "geojson" | "metadata" | "glb") {
@@ -381,6 +422,22 @@ export function App() {
                   Reset session
                 </Button>
               </div>
+              {isCustomScene ? <div className="vision-panel" aria-live="polite">
+                <div>
+                  <strong>Visible facade suggestions</strong>
+                  <span>Optional and reviewable</span>
+                </div>
+                <Button disabled={visionPending} onClick={() => void handleVisionSuggestion()} variant="secondary">
+                  {visionPending ? "Analyzing photos" : "Suggest visible traits"}
+                </Button>
+                {visionError ? <p className="vision-panel__error">{visionError}</p> : null}
+                {visionSuggestion ? <div className="vision-suggestion">
+                  <p><i style={{ backgroundColor: visionSuggestion.dominantFacadeColor }} />{visionSuggestion.dominantFacadeColorLabel} · {visionSuggestion.estimatedWindowColumns} windows across visible facade</p>
+                  <p>{visionSuggestion.floorsRange.min}-{visionSuggestion.floorsRange.max} floors · {formatLabel(visionSuggestion.traits.roofType)} roof · {Math.round(visionSuggestion.confidence * 100)}% overall confidence</p>
+                  {visionSuggestion.assumptions.map((assumption) => <small key={assumption}>{assumption}</small>)}
+                  <Button onClick={applyVisionSuggestion} variant="primary">Apply suggestions</Button>
+                </div> : null}
+              </div> : null}
               <div className="generation-panel" aria-live="polite">
                 <strong>{generationMessage}</strong>
                 <ol>
@@ -607,6 +664,18 @@ export function App() {
                   </div>
                 );
               })}
+              <div className="trait-row trait-row--editor">
+                <span>Facade color</span>
+                <div className="trait-row__control">
+                  <input aria-label="Facade color" onChange={(event) => updateBuildingTrait("facadeColor", event.currentTarget.value)} type="color" value={activeProject.building.facadeColor ?? "#b7b1a4"} />
+                </div>
+              </div>
+              <div className="trait-row trait-row--editor">
+                <span>Windows across visible facade</span>
+                <div className="trait-row__control">
+                  <input aria-label="Windows across visible facade" max="40" min="1" onChange={(event) => updateBuildingTrait("windowColumns", event.currentTarget.value ? Number(event.currentTarget.value) : undefined)} type="number" value={activeProject.building.windowColumns ?? ""} />
+                </div>
+              </div>
             </div>
           </section>
         </aside>

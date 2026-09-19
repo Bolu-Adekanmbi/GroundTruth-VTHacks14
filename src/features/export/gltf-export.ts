@@ -85,7 +85,7 @@ function createBuildingMass(plan: ScenePlan, scorched: boolean) {
   shape.closePath();
   const mesh = new Mesh(
     new ExtrudeGeometry(shape, { depth: plan.heightM, bevelEnabled: false }),
-    new MeshStandardMaterial({ color: scorched ? "#4c403b" : getMaterialColor(plan.material), metalness: plan.material === "metal" ? 0.42 : 0.05, roughness: 0.9 })
+    new MeshStandardMaterial({ color: scorched ? "#4c403b" : getMaterialColor(plan.material, plan.facadeColor), metalness: plan.material === "metal" ? 0.42 : 0.05, roughness: 0.9 })
   );
   mesh.name = "BuildingMass";
   mesh.rotation.x = -Math.PI / 2;

@@ -140,6 +140,18 @@ describe("App", () => {
     expect(useSceneStore.getState().activeProject.building.material).toBe("brick");
   });
 
+  it("keeps facade color and visible-facade window density as editable scene traits", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.upload(screen.getByLabelText("Photo upload"), [imageFile("front.jpg")]);
+    fireEvent.change(screen.getByLabelText("Facade color"), { target: { value: "#9a5b45" } });
+    fireEvent.change(screen.getByLabelText("Windows across visible facade"), { target: { value: "8" } });
+
+    expect(useSceneStore.getState().activeProject.building.facadeColor).toBe("#9a5b45");
+    expect(useSceneStore.getState().activeProject.building.windowColumns).toBe(8);
+  });
+
   it("shows generated scorched controls without changing source traits", async () => {
     const user = userEvent.setup();
     render(<App />);

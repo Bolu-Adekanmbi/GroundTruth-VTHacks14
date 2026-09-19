@@ -5,6 +5,7 @@ import { demoScenesRouter } from "./routes/demo-scenes.js";
 import { gisRouter } from "./routes/gis.js";
 import { getHealthResponse } from "./routes/health.js";
 import { traitsRouter } from "./routes/traits.js";
+import { visionRouter } from "./routes/vision.js";
 
 const clientDistPath = path.resolve(process.cwd(), "dist");
 
@@ -12,7 +13,7 @@ export function createApp() {
   const app = express();
 
   app.disable("x-powered-by");
-  app.use(express.json({ limit: "1mb" }));
+  app.use(express.json({ limit: "6mb" }));
 
   app.get("/api/health", (_request, response) => {
     response.status(200).json(getHealthResponse());
@@ -20,6 +21,7 @@ export function createApp() {
   app.use("/api/demo-scenes", demoScenesRouter);
   app.use("/api", gisRouter);
   app.use("/api", traitsRouter);
+  app.use("/api/vision", visionRouter);
 
   if (existsSync(clientDistPath)) {
     app.use(express.static(clientDistPath));

@@ -107,7 +107,7 @@ describe("scene store", () => {
 
     expect(result.current.generationSteps.map((step) => step.status)).toEqual([
       "complete",
-      "warning",
+      "pending",
       "warning",
       "warning"
     ]);

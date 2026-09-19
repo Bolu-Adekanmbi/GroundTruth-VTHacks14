@@ -24,7 +24,7 @@ describe("GIS adapters", () => {
     expect(response.warnings[0]).toContain("disabled");
   });
 
-  it("returns curated footprints before live lookup", async () => {
+  it("returns the seeded authoritative OSM footprint before live lookup", async () => {
     const response = await lookupFootprint(
       {
         sceneId: "burruss-hall",
@@ -38,7 +38,7 @@ describe("GIS adapters", () => {
     );
 
     expect(response.source).toBe("curated");
-    expect(response.result.source).toBe("curated");
+    expect(response.result.source).toBe("osm");
     expect(response.result.feature.properties.scene_id).toBe("burruss-hall");
   });
 

@@ -336,3 +336,25 @@ This log records completed implementation phases. It does not authorize starting
   - Targeted Playwright canvas regression - passed; refreshed and visually inspected Burruss Hall and Willard Building render baselines
 - Known limitations:
   - This fixes footprint/facade geometry alignment. Photo-specific window spacing and facade detail are still procedural trait approximations rather than image-matched reconstruction.
+
+## Phase 15B - Optional Local Vision Adapter
+
+- Completion date: 2026-09-19
+- Change summary: Added an opt-in `/api/vision/suggest` adapter contract for up to three transient, client-compressed JPEG/PNG/WebP uploads. The adapter returns only visible-facade trait suggestions, color family, window estimates, confidence, assumptions, and warnings. The UI presents those values as a proposal and applies them only after an explicit user action. Applied facade color and visible-facade window columns are canonical editable building traits used by both the viewport and GLB exporter. OSM/curated/manual footprint selection remains wholly outside this adapter and cannot be overwritten by a vision result.
+- Automated checks and results:
+  - `npm run typecheck` - passed
+  - `npm run lint` - passed
+  - `npm test -- --run server/routes/vision.test.ts src/features/scene/scene-plan.test.ts src/app/App.test.tsx` - passed, 17 tests
+  - `npm run build` - passed
+  - `git diff --check` - passed
+- Manual review instructions:
+  - Start the app with `VISION_ADAPTER_URL=mock npm run dev`, then open `http://localhost:5173`.
+  - Upload a JPEG, PNG, or WebP photo, select **Suggest visible traits**, and confirm that a color swatch, window estimate, floor range, roof, confidence, and visible-facade assumptions appear.
+  - Select **Apply suggestions**. Confirm the façade color and window rhythm update in 3D while the map footprint, its source label, and its orientation do not change.
+  - Restart without `VISION_ADAPTER_URL` and repeat the request. Confirm that a concise unavailable message appears and the rest of the custom workflow remains usable.
+- Known limitations or deferred items:
+  - `mock` is deterministic test/demo data, not image inference. A real local adapter must be supplied through `VISION_ADAPTER_URL`; it receives transient base64 image payloads and must return the documented validated envelope.
+  - Suggestions are visible-facade estimates only. They do not claim surveyed dimensions, rear/side features, precise elevation, or photogrammetric reconstruction.
+  - Accent color, per-field confidence, and visible-facade bearing are preserved in the adapter contract for a future richer review UI; the current renderer applies dominant facade color and window columns first.
+  - Vite continues to warn about the existing large MapLibre and Three.js chunks; the build completes successfully.
+- Suggested commit message: `phase-15b: add opt-in visible-facade vision suggestions`
