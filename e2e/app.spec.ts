@@ -67,15 +67,14 @@ test("edits base traits, records manual state, and resets the selected seed", as
   await expect(material).toHaveValue("brick");
 });
 
-test("renders a nonblank procedural building canvas and supports camera actions", async ({ page }) => {
+test("renders a nonblank procedural building canvas and supports scene reset", async ({ page }) => {
   await page.goto("/");
 
   const canvas = page.locator(".scene-stage canvas");
   await expect(canvas).toBeVisible();
   await expect(canvas).toHaveScreenshot("phase-7-burruss-canvas.png");
 
-  await page.getByRole("button", { name: "Fit building" }).click();
-  await page.getByRole("button", { name: "Reset view" }).click();
+  await page.getByRole("button", { name: "Reset scene" }).click();
   await page.getByLabel("Curated example").selectOption("willard-building");
   await expect(canvas).toBeVisible();
   await expect(canvas).toHaveScreenshot("phase-7-willard-canvas.png");

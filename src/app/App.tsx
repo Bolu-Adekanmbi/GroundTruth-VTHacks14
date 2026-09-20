@@ -8,7 +8,6 @@ import {
   useState
 } from "react";
 import {
-  Activity,
   Camera,
   ChevronLeft,
   ChevronRight,
@@ -16,7 +15,6 @@ import {
   ExternalLink,
   Layers,
   MapPin,
-  Maximize2,
   MoveDown,
   MoveLeft,
   MoveRight,
@@ -309,7 +307,10 @@ export function App() {
     <div className="app-shell">
       <header className="topbar">
         <div className="brand-lockup">
-          <h1>GroundTruth</h1>
+          <div className="brand-title">
+            <img src="/demo-assets/Logo-Cropped-transparent.png" alt="" />
+            <h1>GroundTruth</h1>
+          </div>
           <StatusIndicator label="curated source" tone="ready" />
           <StatusIndicator label={online ? "online" : "offline: curated demo available"} tone={online ? "neutral" : "warning"} />
         </div>
@@ -737,22 +738,6 @@ export function App() {
               options={viewportOptions}
               value={viewportMode}
             />
-            <div className="viewport-actions" aria-label="Viewport actions">
-              <IconButton
-                label="Reset view"
-                onClick={() => sceneViewportRef.current?.resetView()}
-                tooltip="Reset view"
-              >
-                <RotateCcw aria-hidden="true" />
-              </IconButton>
-              <IconButton
-                label="Fit building"
-                onClick={() => sceneViewportRef.current?.fitBuilding()}
-                tooltip="Fit building"
-              >
-                <Maximize2 aria-hidden="true" />
-              </IconButton>
-            </div>
           </div>
 
           <div className="viewport-grid" data-active-viewport={viewportMode}>
@@ -771,7 +756,16 @@ export function App() {
             <article className="viewport-panel viewport-panel--scene">
               <div className="viewport-title">
                 <span>3D Scene</span>
-                <code>{sceneMode}</code>
+                <div className="viewport-title__meta">
+                  <code>{sceneMode}</code>
+                  <IconButton
+                    label="Reset scene"
+                    onClick={() => sceneViewportRef.current?.resetView()}
+                    tooltip="Reset scene"
+                  >
+                    <RotateCcw aria-hidden="true" />
+                  </IconButton>
+                </div>
               </div>
               <Suspense fallback={<SceneLoadingFallback />}>
                 <ErrorBoundary fallback={<SceneRecovery onLoadDemo={() => loadDemoScene("burruss-hall")} />}>
@@ -1084,28 +1078,6 @@ export function App() {
         </section>
       </div> : null}
 
-      <footer className="statusbar">
-        <StatusIndicator
-          label={
-            generationState === "ready"
-              ? "scene-ready"
-              : generationState === "review-required"
-                ? "scene ready; review traits"
-                : "scene draft"
-          }
-          tone={generationState === "draft" ? "warning" : "ready"}
-        />
-        <span>
-          Source: <strong>{activeProject.location.source}</strong>
-        </span>
-        <span>
-          Footprint: <strong>{activeProject.footprint.source}</strong>
-        </span>
-        <span className="statusbar__mode">
-          <Activity aria-hidden="true" />
-          {sceneModeOptions.find((option) => option.value === sceneMode)?.label}
-        </span>
-      </footer>
     </div>
     </ErrorBoundary>
   );
