@@ -179,7 +179,7 @@ describe("App", () => {
     await user.click(screen.getByLabelText("Canopy"));
     await user.click(screen.getByLabelText("Portico"));
 
-    expect(useSceneStore.getState().activeProject.building.facadeModules).toEqual(["canopy", "portico"]);
+    expect(useSceneStore.getState().activeProject.building.facadeModules).toEqual(["tower", "canopy", "portico"]);
   });
 
   it("shows generated scorched controls without changing source traits", async () => {

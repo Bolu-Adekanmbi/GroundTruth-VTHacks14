@@ -401,6 +401,28 @@ This log records completed implementation phases. It does not authorize starting
   - The full local Playwright run was interrupted by the environment after its first seven passing tests; the affected Base, Scorched, Disaster, and corrected-coordinate browser checks were rerun in focused groups and passed.
 - Suggested commit message: `phase-15e: improve procedural scene fidelity`
 
+## Phase 15E Refinement - Structural Scenario Readability
+
+- Completion date: 2026-09-20
+- Change summary: Replaced the remaining red Disaster damage markers with type-specific simulated geometry. Fire now includes roof breaches, emissive flames, smoke, and facade char; flood adds a volumetric water rise, waterline staining, and floating debris; wind adds dark facade/roof breaches, displaced tilted panels, and ground debris; structural damage adds cracks, braces, and collapsed slabs. Scorched controls now drive independent decay patches, bounded roof breaches, embers, larger debris, ground growth, and bright photo-facing facade vines, including true zero states. Burruss Hall now uses a varied Hokie Stone block treatment and a more legible tower module. Irregular OSM footprints support visible gable and hip treatments instead of silently reverting to flat roofs. The viewport and GLB export share the new geometry.
+- Automated checks and results:
+  - `npm run typecheck` - passed
+  - `npm test -- --run` - passed, 84 tests
+  - `npm run lint` - passed
+  - `npm run build` - passed
+  - `git diff --check` - passed
+  - Focused Playwright desktop/mobile captures - passed, 6 captures
+  - Full Playwright run - 27 passed initially; two stale test selectors were corrected and both reruns passed
+- Manual review instructions:
+  - Open Burruss Hall in **Base** and confirm the neutral gray-brown Hokie Stone courses, darker glass, and tower remain attached to the OSM footprint.
+  - Open **Scorched Nebraska**, move every slider from 0 to 100, and confirm each treatment disappears at 0 and becomes unmistakable at 100. Check facade char, vines, boards, roof breaches, embers, and debris from at least two camera angles.
+  - Open **Disaster Response** and review Fire, Flood, Wind, and Structural at 25% and 85%. Confirm the four silhouettes/effects are distinct and no red diagnostic roof rectangle appears.
+  - Export Base, Scorched, and each Disaster type as GLB and confirm the named scenario groups survive in an independent viewer.
+- Known limitations or deferred items:
+  - This remains a deterministic procedural reconstruction from an authoritative footprint and reviewed traits. A single photo cannot recover hidden depth, towers, porches, or facade topology reliably.
+  - Gaussian splatting requires overlapping multi-view photos or video plus a reconstruction service. Google Earth and Street View imagery cannot be treated as freely exportable model textures; any future integration needs an approved imagery source and license review.
+- Suggested commit message: `phase-15e: rebuild procedural damage and hokie-stone detail`
+
 ## Post-Phase UI Fix - Map operational legend overlap
 
 - Completion date: 2026-09-19

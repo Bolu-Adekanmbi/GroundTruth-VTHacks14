@@ -12,7 +12,8 @@ import {
   MeshBasicMaterial,
   MeshStandardMaterial,
   Scene,
-  Shape
+  Shape,
+  SphereGeometry
 } from "three";
 import type { SceneProject } from "../../../shared/scene-schema";
 import { buildDisasterPlan } from "../scene/disaster-plan";
@@ -40,6 +41,7 @@ export function buildGlbScene(project: SceneProject) {
   building.name = "Building";
   building.userData = { building_type: project.building.buildingType, height_m: plan.heightM, footprint_source: project.footprint.source };
   building.add(createBuildingMass(plan, Boolean(scorchedPlan)));
+  building.add(createStoneFacade(plan, Boolean(scorchedPlan)));
   building.add(createWindows(plan, Boolean(scorchedPlan)));
   building.add(createWindowFrames(plan, Boolean(scorchedPlan)));
   building.add(createArchitecturalDetails(plan));
@@ -52,6 +54,16 @@ export function buildGlbScene(project: SceneProject) {
   if (disasterPlan) scene.add(createDisasterGroup(disasterPlan, plan));
 
   return scene;
+}
+
+function createStoneFacade(plan: ScenePlan, scorched: boolean) {
+  const group = new Group();
+  group.name = "HokieStoneFacade";
+  const colors = scorched
+    ? ["#443c35", "#57493d", "#332f2a", "#625346"]
+    : ["#8b877b", "#a39d8e", "#77756d", "#b2aa98"];
+  colors.forEach((color, tone) => addTransforms(group, `StoneTone${tone + 1}`, plan.stoneBlocks.filter((block) => block.tone === tone), color, [1, 1, 1]));
+  return group;
 }
 
 export async function buildGlbExport(project: SceneProject): Promise<ArrayBuffer> {
@@ -170,7 +182,7 @@ function createFacadeModules(plan: ScenePlan) {
 }
 
 function createRoof(plan: ScenePlan) {
-  if (plan.roofType === "flat" || plan.outline.length !== 4) {
+  if (plan.roofType === "flat") {
     const shape = new Shape();
     plan.outline.forEach((point, index) => index === 0 ? shape.moveTo(point.x, -point.z) : shape.lineTo(point.x, -point.z));
     shape.closePath();
@@ -180,14 +192,22 @@ function createRoof(plan: ScenePlan) {
     mesh.rotation.x = -Math.PI / 2;
     return mesh;
   }
-  const ridgeHeight = Math.min(5, Math.max(2, plan.heightM * 0.14));
+  const ridgeHeight = Math.min(7, Math.max(2.4, plan.heightM * 0.18));
+  const centerX = (plan.bounds.minX + plan.bounds.maxX) / 2;
+  const centerZ = (plan.bounds.minZ + plan.bounds.maxZ) / 2;
+  const longOnX = plan.bounds.width >= plan.bounds.depth;
+  const ridgeFor = (point: { x: number; z: number }): [number, number, number] => plan.roofType === "hip"
+    ? [centerX, plan.heightM + ridgeHeight, centerZ]
+    : [longOnX ? point.x : centerX, plan.heightM + ridgeHeight, longOnX ? centerZ : point.z];
+  const vertices: number[] = [];
+  plan.outline.forEach((point, index) => {
+    const next = plan.outline[(index + 1) % plan.outline.length];
+    const ridgeA = ridgeFor(point);
+    const ridgeB = ridgeFor(next);
+    vertices.push(point.x, plan.heightM, point.z, next.x, plan.heightM, next.z, ...ridgeB, point.x, plan.heightM, point.z, ...ridgeB, ...ridgeA);
+  });
   const geometry = new BufferGeometry();
-  geometry.setAttribute("position", new Float32BufferAttribute([
-    plan.bounds.minX, plan.heightM, plan.bounds.minZ, plan.bounds.maxX, plan.heightM, plan.bounds.minZ,
-    plan.bounds.maxX, plan.heightM, plan.bounds.maxZ, plan.bounds.minX, plan.heightM, plan.bounds.maxZ,
-    plan.bounds.minX, plan.heightM + ridgeHeight, 0, plan.bounds.maxX, plan.heightM + ridgeHeight, 0
-  ], 3));
-  geometry.setIndex([0, 1, 5, 0, 5, 4, 3, 4, 5, 3, 5, 2, 0, 4, 3, 1, 2, 5, 0, 3, 2, 0, 2, 1]);
+  geometry.setAttribute("position", new Float32BufferAttribute(vertices, 3));
   geometry.computeVertexNormals();
   const mesh = new Mesh(geometry, new MeshStandardMaterial({ color: "#55615d", roughness: 0.74, side: DoubleSide }));
   mesh.name = "Roof";
@@ -202,20 +222,26 @@ function createScorchedGroup(plan: ScorchedPlan) {
   addTransforms(group, "RoofDamage", plan.roofDamage, "#241916", [1, 1, 1]);
   addTransforms(group, "Debris", plan.debris, "#6b6259", [1, 1, 1]);
   addTransforms(group, "ScorchPatches", plan.scorchPatches, "#241916", [1, 1, 0.04], true);
-  addTransforms(group, "Overgrowth", plan.overgrowth, "#405b38", [0.55, 1, 0.55], false, "cone");
+  addTransforms(group, "DecayPatches", plan.decayPatches, "#6b6256", [1, 1, 1]);
+  addTransforms(group, "Overgrowth", plan.overgrowth, "#4f9147", [0.55, 1, 0.55], false, "cone");
+  addTransforms(group, "FacadeVines", plan.facadeVines, "#39713d", [1, 1, 1]);
+  addTransforms(group, "Embers", plan.embers, "#ff5a1f", [1, 1, 1], false, "sphere");
   return group;
 }
 
-function addTransforms(group: Group, name: string, transforms: { position: [number, number, number]; scale: [number, number, number]; yawRad: number; }[], color: string, dimensions: [number, number, number], transparent = false, kind: "box" | "cone" = "box") {
+function addTransforms(group: Group, name: string, transforms: { position: [number, number, number]; scale: [number, number, number]; yawRad: number; rotation?: [number, number, number]; }[], color: string, dimensions: [number, number, number], transparent = false, kind: "box" | "cone" | "sphere" = "box") {
   const node = new Group();
   node.name = name;
-  const geometry = kind === "cone" ? new ConeGeometry(dimensions[0], dimensions[1], 5) : new BoxGeometry(...dimensions);
+  const geometry = kind === "cone"
+    ? new ConeGeometry(dimensions[0], dimensions[1], 7)
+    : kind === "sphere" ? new SphereGeometry(dimensions[0], 12, 8) : new BoxGeometry(...dimensions);
   const material = transparent ? new MeshBasicMaterial({ color, transparent: true, opacity: 0.78 }) : new MeshStandardMaterial({ color, roughness: 0.85 });
   transforms.forEach((transform, index) => {
     const mesh = new Mesh(geometry, material);
     mesh.name = `${name}_${index + 1}`;
     mesh.position.set(...transform.position);
-    mesh.rotation.y = transform.yawRad;
+    if (transform.rotation) mesh.rotation.set(...transform.rotation);
+    else mesh.rotation.y = transform.yawRad;
     mesh.scale.set(...transform.scale);
     node.add(mesh);
   });
@@ -242,6 +268,9 @@ function createDisasterGroup(disaster: ReturnType<typeof buildDisasterPlan>, sce
     group.add(mesh);
   });
   addTransforms(group, "FireScorch", disaster.simulatedDamage.fireScorch, "#2b1712", [1, 1, 0.08], true);
+  addTransforms(group, "RoofBreaches", disaster.simulatedDamage.roofBreaches, "#0b0a08", [1, 1, 1]);
+  addTransforms(group, "FireFlames", disaster.simulatedDamage.fireFlames, "#ff5a18", [0.7, 2, 0.7], false, "cone");
+  addTransforms(group, "FireSmoke", disaster.simulatedDamage.fireSmoke, "#3f3d39", [1, 1, 1], true, "sphere");
   if (disaster.simulatedDamage.floodWater) {
     const water = disaster.simulatedDamage.floodWater;
     const mesh = new Mesh(new BoxGeometry(1, 1, 1), new MeshStandardMaterial({ color: "#245f72", emissive: "#163d4a", emissiveIntensity: 0.18, transparent: true, opacity: 0.55, roughness: 0.28, metalness: 0.18 }));
@@ -251,9 +280,13 @@ function createDisasterGroup(disaster: ReturnType<typeof buildDisasterPlan>, sce
     group.add(mesh);
   }
   addTransforms(group, "FloodStains", disaster.simulatedDamage.floodStains, "#315a60", [1, 1, 0.08], true);
+  addTransforms(group, "FloodDebris", disaster.simulatedDamage.floodDebris, "#685640", [1, 1, 1]);
+  addTransforms(group, "WindBreaches", disaster.simulatedDamage.windBreaches, "#111817", [1, 1, 0.08]);
   addTransforms(group, "WindDisplacement", disaster.simulatedDamage.windPanels, "#73827b", [1, 1, 0.08]);
+  addTransforms(group, "WindDebris", disaster.simulatedDamage.windDebris, "#5e625d", [1, 1, 1]);
   addTransforms(group, "StructuralCracks", disaster.simulatedDamage.structuralCracks, "#261714", [1, 1, 0.08], true);
   addTransforms(group, "StructuralBraces", disaster.simulatedDamage.structuralBraces, "#b56a2e", [1, 1, 0.08]);
+  addTransforms(group, "CollapsedPanels", disaster.simulatedDamage.collapsedPanels, "#6f685d", [1, 1, 1]);
   return group;
 }
 

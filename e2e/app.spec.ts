@@ -74,7 +74,7 @@ test("renders a nonblank procedural building canvas and supports scene reset", a
   await expect(canvas).toBeVisible();
   await expect(canvas).toHaveScreenshot("phase-7-burruss-canvas.png");
 
-  await page.getByRole("button", { name: "Reset scene" }).click();
+  await page.getByRole("button", { name: "Reset scene", exact: true }).click();
   await page.getByLabel("Curated example").selectOption("willard-building");
   await expect(canvas).toBeVisible();
   await expect(canvas).toHaveScreenshot("phase-7-willard-canvas.png");
@@ -175,7 +175,7 @@ test("keeps curated scenes usable offline and guides custom trait confirmation",
   await page.getByRole("button", { name: "Generate scene" }).click();
   await expect(page.getByRole("button", { name: "Confirm custom traits" })).toBeVisible();
   await page.getByRole("button", { name: "Confirm custom traits" }).click();
-  await expect(page.getByText("scene-ready")).toBeVisible();
+  await expect(page.getByText("Custom traits confirmed. Scene remains editable and reviewable.")).toBeVisible();
 });
 
 test("shows a recoverable map warning when basemap tiles fail", async ({ page }) => {

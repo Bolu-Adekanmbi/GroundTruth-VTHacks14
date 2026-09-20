@@ -1028,7 +1028,7 @@ export function App() {
                 <div className="disaster-legend" aria-label="Disaster overlay legend">
                   <span><i className="disaster-legend__hazard" /> Hazard zone</span>
                   <span><i className="disaster-legend__access" /> Blocked access</span>
-                  <span><i className="disaster-legend__damage" /> Damage marker</span>
+                  <span><i className="disaster-legend__damage" /> Simulated damage</span>
                 </div>
               </div>
             </section>

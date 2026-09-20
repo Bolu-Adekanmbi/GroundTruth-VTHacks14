@@ -47,6 +47,10 @@ export interface DetailTransform {
   yawRad: number;
 }
 
+export interface StoneBlockTransform extends DetailTransform {
+  tone: 0 | 1 | 2 | 3;
+}
+
 export interface ScenePlan {
   projectId: string;
   outline: LocalMeterPoint[];
@@ -62,6 +66,7 @@ export interface ScenePlan {
   facadeBands: DetailTransform[];
   parapetEdges: DetailTransform[];
   entranceSteps: DetailTransform[];
+  stoneBlocks: StoneBlockTransform[];
   entrance: { position: [number, number, number]; yawRad: number };
   frontFacadeIndex: number;
   seed: number;
@@ -131,6 +136,7 @@ export function buildScenePlan(project: SceneProject): ScenePlan {
   const facadeBands = buildFacadeBands(markedFacades, project.building.floors, heightM);
   const parapetEdges = buildParapetEdges(markedFacades, heightM);
   const entranceSteps = buildEntranceSteps(entranceFacade);
+  const stoneBlocks = project.id === "burruss-hall" ? buildStoneBlocks(markedFacades, heightM) : [];
 
   return {
     projectId: project.id,
@@ -147,6 +153,7 @@ export function buildScenePlan(project: SceneProject): ScenePlan {
     facadeBands,
     parapetEdges,
     entranceSteps,
+    stoneBlocks,
     entrance: {
       position: [
         entranceFacade.midpoint.x + Math.sin(entranceFacade.yawRad) * ENTRANCE_SURFACE_OFFSET_M,
@@ -158,6 +165,32 @@ export function buildScenePlan(project: SceneProject): ScenePlan {
     frontFacadeIndex,
     seed: hashProject(project)
   };
+}
+
+function buildStoneBlocks(facades: FacadePlan[], heightM: number): StoneBlockTransform[] {
+  const courseHeight = 1.35;
+  const rows = Math.max(1, Math.floor(heightM / courseHeight));
+  return facades.flatMap((facade) => {
+    const direction = normalizeVector({ x: facade.end.x - facade.start.x, z: facade.end.z - facade.start.z });
+    const columns = Math.max(1, Math.ceil(facade.lengthM / 2.65));
+    const blockWidth = Math.max(0.7, facade.lengthM / columns - 0.12);
+    return Array.from({ length: rows }, (_, row) =>
+      Array.from({ length: columns }, (_, column) => {
+        const stagger = row % 2 === 0 ? 0 : 0.5;
+        const distance = ((column + 0.5 + stagger) / columns - 0.5) * facade.lengthM;
+        return {
+          position: [
+            facade.midpoint.x + direction.x * distance + Math.sin(facade.yawRad) * 0.045,
+            Math.min(heightM - 0.5, courseHeight * (row + 0.5)),
+            facade.midpoint.z + direction.z * distance + Math.cos(facade.yawRad) * 0.045
+          ] as [number, number, number],
+          scale: [blockWidth, courseHeight - 0.13, 0.06] as [number, number, number],
+          yawRad: facade.yawRad,
+          tone: ((row * 3 + column + facade.index) % 4) as 0 | 1 | 2 | 3
+        };
+      })
+    ).flat();
+  });
 }
 
 function buildFacadeBands(facades: FacadePlan[], floors: number, heightM: number): DetailTransform[] {
@@ -211,7 +244,7 @@ function buildFacadeModules(types: FacadeModuleType[], facade: FacadePlan, heigh
 
   return types.map((type) => {
     if (type === "tower") {
-      return { type, position: atFacade(-1.2, heightM * 0.65), scale: [Math.min(8, facade.lengthM * 0.26), heightM * 1.3, 3.6], yawRad: facade.yawRad };
+      return { type, position: atFacade(2.1, heightM * 0.72), scale: [Math.max(6, Math.min(9, facade.lengthM * 0.5)), heightM * 1.44, 4.2], yawRad: facade.yawRad };
     }
     if (type === "portico") {
       return { type, position: atFacade(1.1, 2.2), scale: [5.2, 4.4, 2.2], yawRad: facade.yawRad };
@@ -222,7 +255,7 @@ function buildFacadeModules(types: FacadeModuleType[], facade: FacadePlan, heigh
     if (type === "bay") {
       return { type, position: atFacade(0.85, Math.min(3.4, heightM * 0.38)), scale: [4.5, Math.min(4.8, heightM * 0.65), 1.7], yawRad: facade.yawRad };
     }
-    return { type, position: atFacade(-0.5, Math.min(3.8, heightM * 0.45)), scale: [Math.min(9, facade.lengthM * 0.42), Math.min(6, heightM * 0.75), 4.5], yawRad: facade.yawRad };
+    return { type, position: atFacade(1.8, Math.min(3.8, heightM * 0.45)), scale: [Math.min(9, facade.lengthM * 0.42), Math.min(6, heightM * 0.75), 4.5], yawRad: facade.yawRad };
   });
 }
 

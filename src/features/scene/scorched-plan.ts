@@ -11,9 +11,12 @@ export interface ScorchedPlan {
   boardedWindows: ScorchedTransform[];
   brokenWindows: ScorchedTransform[];
   scorchPatches: ScorchedTransform[];
+  decayPatches: ScorchedTransform[];
   roofDamage: ScorchedTransform[];
   debris: ScorchedTransform[];
   overgrowth: ScorchedTransform[];
+  facadeVines: ScorchedTransform[];
+  embers: ScorchedTransform[];
   gameplay: {
     assetClass: string;
     traversal: string;
@@ -26,16 +29,23 @@ export function buildScorchedPlan(project: SceneProject, scene: ScenePlan): Scor
   const settings = project.scenario.scorched;
   const random = createSeededRandom(scene.seed);
   const windows = shuffled(scene.windows, random);
-  const visibleFirstWindows = [
-    ...windows.filter((window) => window.facadeIndex === scene.frontFacadeIndex),
-    ...windows.filter((window) => window.facadeIndex !== scene.frontFacadeIndex)
-  ];
-  const boardCount = Math.max(2, Math.round(windows.length * settings.boardedWindowRatio));
-  const brokenCount = Math.max(2, Math.round(windows.length * Math.min(0.82, settings.decayIntensity * 0.44 + settings.scorchIntensity * 0.36)));
-  const scorchCount = Math.max(3, Math.round(Math.min(44, windows.length) * (0.2 + settings.scorchIntensity * 0.8)));
-  const roofDamageCount = Math.max(1, Math.ceil(settings.scorchIntensity * 5));
-  const debrisCount = Math.max(3, Math.round(24 * settings.debrisDensity));
-  const overgrowthCount = Math.max(3, Math.round(36 * settings.overgrowthIntensity));
+  const presentationFacades = [...scene.facades].sort((left, right) =>
+    Math.sin(right.yawRad) + Math.cos(right.yawRad) - Math.sin(left.yawRad) - Math.cos(left.yawRad)
+  );
+  const visibleFirstWindows = [...windows].sort((left, right) => {
+    const leftFacade = scene.facades[left.facadeIndex];
+    const rightFacade = scene.facades[right.facadeIndex];
+    return Math.sin(rightFacade.yawRad) + Math.cos(rightFacade.yawRad) - Math.sin(leftFacade.yawRad) - Math.cos(leftFacade.yawRad);
+  });
+  const frontFacade = presentationFacades[0];
+  const boardCount = Math.round(windows.length * settings.boardedWindowRatio);
+  const brokenCount = Math.round(windows.length * Math.min(0.82, settings.decayIntensity * 0.5 + settings.scorchIntensity * 0.38));
+  const scorchCount = Math.round(Math.min(60, windows.length) * settings.scorchIntensity);
+  const decayCount = Math.round(Math.min(48, windows.length) * settings.decayIntensity);
+  const roofDamageCount = Math.ceil(settings.scorchIntensity * 8);
+  const debrisCount = Math.round(36 * settings.debrisDensity);
+  const overgrowthCount = Math.round(52 * settings.overgrowthIntensity);
+  const vineCount = Math.round(22 * settings.overgrowthIntensity);
 
   return {
     boardedWindows: windows.slice(0, boardCount).flatMap((window) => makeBoards(window)),
@@ -46,19 +56,24 @@ export function buildScorchedPlan(project: SceneProject, scene: ScenePlan): Scor
     })),
     scorchPatches: visibleFirstWindows.slice(0, scorchCount).map((window, index) => ({
       position: offsetFromFacade(window, 0.2),
-      scale: [window.scale[0] * (1.5 + (index % 3) * 0.22), window.scale[1] * (1.75 + (index % 2) * 0.18), 1],
+      scale: [window.scale[0] * (2 + (index % 3) * 0.35), window.scale[1] * (2.2 + (index % 2) * 0.35), 1],
       yawRad: window.yawRad
+    })),
+    decayPatches: visibleFirstWindows.slice().reverse().slice(0, decayCount).map((window, index) => ({
+      position: offsetFromFacade(window, 0.14),
+      scale: [window.scale[0] * (1.8 + (index % 4) * 0.25), window.scale[1] * (0.55 + (index % 3) * 0.2), 0.08],
+      yawRad: window.yawRad + ((index % 3) - 1) * 0.06
     })),
     roofDamage: Array.from({ length: roofDamageCount }, (_, index) => ({
       position: [
         (random() - 0.5) * scene.bounds.width * 0.5,
-        scene.heightM + 0.76 + index * 0.08,
+        scene.heightM + 0.84 + index * 0.12,
         (random() - 0.5) * scene.bounds.depth * 0.5
       ],
       scale: [
-        Math.max(3, scene.bounds.width * (0.14 + random() * 0.08)),
-        0.14 + random() * 0.13,
-        Math.max(2.6, scene.bounds.depth * (0.1 + random() * 0.07))
+        3 + random() * Math.min(6, scene.bounds.width * 0.08),
+        0.12 + random() * 0.16,
+        2.4 + random() * Math.min(4.5, scene.bounds.depth * 0.06)
       ],
       yawRad: random() * 0.38
     })),
@@ -67,26 +82,43 @@ export function buildScorchedPlan(project: SceneProject, scene: ScenePlan): Scor
       return {
         position: [
           scene.entrance.position[0] + (random() - 0.5) * spread,
-          0.24,
+          0.18 + random() * 0.38,
           scene.entrance.position[2] + (random() - 0.5) * spread
         ],
-        scale: [0.35 + random() * 0.9, 0.16 + random() * 0.3, 0.24 + random() * 0.7],
+        scale: [0.55 + random() * 1.45, 0.24 + random() * 0.55, 0.4 + random() * 1.15],
         yawRad: random() * Math.PI
       };
     }),
     overgrowth: Array.from({ length: overgrowthCount }, (_, index) => {
-      const facade = scene.facades[index % scene.facades.length];
+      const facade = index % 3 === 0 ? frontFacade : presentationFacades[index % presentationFacades.length];
       const along = random() - 0.5;
       return {
         position: [
-          facade.midpoint.x + (facade.end.x - facade.start.x) * along,
-          0.45,
-          facade.midpoint.z + (facade.end.z - facade.start.z) * along
+          facade.midpoint.x + (facade.end.x - facade.start.x) * along + Math.sin(facade.yawRad) * 2.5,
+          2 + random() * 1.2,
+          facade.midpoint.z + (facade.end.z - facade.start.z) * along + Math.cos(facade.yawRad) * 2.5
         ],
-        scale: [0.32 + random() * 0.38, 0.7 + random() * 1.3, 0.32 + random() * 0.38],
+        scale: [1.5 + random() * 1.3, 3 + random() * 2.2, 1.5 + random() * 1.3],
         yawRad: random() * Math.PI
       };
     }),
+    facadeVines: Array.from({ length: vineCount }, (_, index) => {
+      const window = visibleFirstWindows[index % visibleFirstWindows.length];
+      return {
+        position: offsetFromFacade(window, 0.5),
+        scale: [1.1 + random() * 1.6, 3.5 + random() * 5.5, 0.18],
+        yawRad: window.yawRad + (random() - 0.5) * 0.14
+      };
+    }),
+    embers: Array.from({ length: Math.round(18 * settings.scorchIntensity) }, (_, index) => ({
+      position: [
+        (random() - 0.5) * scene.bounds.width * 0.55,
+        scene.heightM + 0.9 + (index % 4) * 0.32,
+        (random() - 0.5) * scene.bounds.depth * 0.55
+      ],
+      scale: [0.16 + random() * 0.24, 0.16 + random() * 0.3, 0.16 + random() * 0.24],
+      yawRad: 0
+    })),
     gameplay: {
       assetClass: "Scorched landmark",
       traversal: settings.debrisDensity > 0.55 ? "Obstructed exterior" : "Perimeter accessible",

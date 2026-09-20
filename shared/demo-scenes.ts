@@ -78,9 +78,11 @@ const rawDemoScenes = [
       floors: 5,
       heightM: 30,
       material: "brick",
+      facadeColor: "#817d72",
       roofType: "flat",
       windowPattern: "regular",
-      entrancePosition: "south"
+      entrancePosition: "south",
+      facadeModules: ["tower"]
     },
     scenario: {
       activeMode: "base",

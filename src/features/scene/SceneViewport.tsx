@@ -83,10 +83,12 @@ export const SceneViewport = forwardRef<SceneViewportHandle, { project: ScenePro
 function SceneContents({ command, plan, scorchedPlan, disasterPlan }: { command: { id: number; type: CameraCommand; }; plan: ScenePlan; scorchedPlan: ScorchedPlan | null; disasterPlan: DisasterPlan | null; }) {
   return (
     <>
+      <color attach="background" args={[scorchedPlan ? "#596059" : disasterPlan ? "#c7d0cc" : "#d8e0dc"]} />
       <ambientLight intensity={0.62} />
       <directionalLight castShadow intensity={2.6} position={[55, 85, 35]} shadow-mapSize={[2048, 2048]} />
       <hemisphereLight args={["#e7f3ef", "#45504b", 0.72]} />
       <BuildingMass plan={plan} scorched={Boolean(scorchedPlan)} />
+      <StoneFacade plan={plan} scorched={Boolean(scorchedPlan)} />
       <WindowInstances plan={plan} scorched={Boolean(scorchedPlan)} />
       <WindowFrames plan={plan} scorched={Boolean(scorchedPlan)} />
       <ArchitecturalDetails plan={plan} />
@@ -124,6 +126,22 @@ const BuildingMass = memo(function BuildingMass({ plan, scorched }: { plan: Scen
   );
 });
 
+function StoneFacade({ plan, scorched }: { plan: ScenePlan; scorched: boolean; }) {
+  const palettes = scorched
+    ? ["#443c35", "#57493d", "#332f2a", "#625346"]
+    : ["#8b877b", "#a39d8e", "#77756d", "#b2aa98"];
+  return <group>
+    {palettes.map((color, tone) => (
+      <TransformInstances
+        color={color}
+        geometry="block"
+        key={color}
+        transforms={plan.stoneBlocks.filter((block) => block.tone === tone)}
+      />
+    ))}
+  </group>;
+}
+
 const WindowInstances = memo(function WindowInstances({ plan, scorched }: { plan: ScenePlan; scorched: boolean; }) {
   const meshRef = useRef<InstancedMesh>(null);
   const matrices = useMemo(() => {
@@ -147,7 +165,7 @@ const WindowInstances = memo(function WindowInstances({ plan, scorched }: { plan
   return (
     <instancedMesh castShadow ref={meshRef} args={[undefined, undefined, matrices.length]}>
       <boxGeometry args={[1, 1, 1]} />
-      <meshStandardMaterial color={scorched ? "#1c2223" : "#d5e7e6"} emissive={scorched ? "#080b0b" : "#203a3b"} emissiveIntensity={scorched ? 0.03 : 0.16} metalness={0.12} roughness={scorched ? 0.78 : 0.22} />
+      <meshStandardMaterial color={scorched ? "#111718" : "#486d71"} emissive={scorched ? "#060808" : "#172d30"} emissiveIntensity={scorched ? 0.02 : 0.08} metalness={0.22} roughness={scorched ? 0.82 : 0.3} />
     </instancedMesh>
   );
 });
@@ -224,23 +242,32 @@ function ScorchedLayers({ plan }: { plan: ScorchedPlan; }) {
       <TransformInstances transforms={plan.brokenWindows} color="#0d1110" geometry="window" />
       <TransformInstances transforms={plan.roofDamage} color="#241916" geometry="debris" />
       <TransformInstances transforms={plan.debris} color="#4c4038" geometry="debris" />
+      <TransformInstances transforms={plan.decayPatches} color="#6b6256" geometry="block" />
+      {plan.facadeVines.map((vine, index) => <mesh castShadow key={`vine-${index}`} position={vine.position} rotation={[0, vine.yawRad, 0]} scale={vine.scale}>
+        <planeGeometry args={[1, 1]} />
+        <meshBasicMaterial color={index % 2 === 0 ? "#63cf4f" : "#35a94a"} side={DoubleSide} />
+      </mesh>)}
       {plan.scorchPatches.map((patch, index) => (
         <mesh key={`scorch-${index}`} position={patch.position} rotation={[0, patch.yawRad, 0]} scale={patch.scale}>
           <planeGeometry args={[1, 1]} />
-          <meshBasicMaterial color={index % 3 === 0 ? "#130d09" : "#362118"} opacity={0.9} transparent />
+          <meshBasicMaterial color={index % 3 === 0 ? "#090604" : "#2c150d"} opacity={0.94} transparent polygonOffset polygonOffsetFactor={-2} />
         </mesh>
       ))}
       {plan.overgrowth.map((tuft, index) => (
         <mesh castShadow key={`overgrowth-${index}`} position={tuft.position} rotation={[0, tuft.yawRad, 0]} scale={tuft.scale}>
           <coneGeometry args={[0.55, 1, 5]} />
-          <meshStandardMaterial color={index % 3 === 0 ? "#536c3d" : "#405b38"} roughness={0.95} />
+          <meshStandardMaterial color={index % 3 === 0 ? "#78bd4f" : "#45a34b"} roughness={0.95} />
         </mesh>
       ))}
+      {plan.embers.map((ember, index) => <mesh key={`ember-${index}`} position={ember.position} scale={ember.scale}>
+        <sphereGeometry args={[1, 10, 8]} />
+        <meshStandardMaterial color="#ff8a32" emissive="#ff4b18" emissiveIntensity={2.4} roughness={0.5} />
+      </mesh>)}
     </group>
   );
 }
 
-function TransformInstances({ transforms, color, geometry }: { transforms: ScorchedTransform[]; color: string; geometry: "board" | "window" | "debris"; }) {
+function TransformInstances({ transforms, color, geometry }: { transforms: ScorchedTransform[]; color: string; geometry: "board" | "window" | "debris" | "block"; }) {
   const meshRef = useRef<InstancedMesh>(null);
   const matrices = useMemo(() => {
     const object = new Object3D();
@@ -280,13 +307,13 @@ function DisasterLayers({ plan }: { plan: DisasterPlan; }) {
         </mesh>
       ) : null}
 
-      {/* Disaster overlays */}
+      {/* Operational access markers stay distinct from simulated damage. */}
       {plan.overlays.map((overlay, index) => {
         const colorMap: Record<string, string> = {
           "access-blocked": "#c0392b",
           "hazard-zone": "#e67e22",
-          "damage-roof": "#e74c3c",
-          "damage-facade": "#c0392b"
+          "damage-roof": "#3d3028",
+          "damage-facade": "#3d3028"
         };
 
         return (
@@ -311,6 +338,21 @@ function DisasterLayers({ plan }: { plan: DisasterPlan; }) {
         );
       })}
       <DamageMeshes transforms={simulatedDamage.fireScorch} color="#2b1712" opacity={0.92} />
+      <DamageMeshes transforms={simulatedDamage.roofBreaches} color="#0b0a08" />
+      {simulatedDamage.fireFlames.map((flame, index) => <group key={`flame-${index}`} position={flame.position} scale={flame.scale}>
+        <mesh position={[0, 0.45, 0]}>
+          <coneGeometry args={[0.62, 2, 9]} />
+          <meshStandardMaterial color="#ff7a18" emissive="#ff3d00" emissiveIntensity={3.2} transparent opacity={0.92} />
+        </mesh>
+        <mesh position={[0, 0.15, 0]} scale={[0.52, 0.62, 0.52]}>
+          <coneGeometry args={[0.7, 2, 9]} />
+          <meshStandardMaterial color="#ffd45c" emissive="#ff9800" emissiveIntensity={3.8} />
+        </mesh>
+      </group>)}
+      {simulatedDamage.fireSmoke.map((smoke, index) => <mesh key={`smoke-${index}`} position={smoke.position} scale={smoke.scale}>
+        <sphereGeometry args={[1, 12, 9]} />
+        <meshStandardMaterial color={index % 3 === 0 ? "#242321" : "#4b4945"} depthWrite={false} opacity={0.4} transparent roughness={1} />
+      </mesh>)}
       {simulatedDamage.floodWater ? (
         <mesh position={simulatedDamage.floodWater.position} scale={simulatedDamage.floodWater.scale}>
           <boxGeometry args={[1, 1, 1]} />
@@ -318,9 +360,13 @@ function DisasterLayers({ plan }: { plan: DisasterPlan; }) {
         </mesh>
       ) : null}
       <DamageMeshes transforms={simulatedDamage.floodStains} color="#315a60" opacity={0.82} />
-      <DamageMeshes transforms={simulatedDamage.windPanels} color="#73827b" />
+      <DamageMeshes transforms={simulatedDamage.floodDebris} color="#685640" />
+      <DamageMeshes transforms={simulatedDamage.windBreaches} color="#111817" />
+      <DamageMeshes transforms={simulatedDamage.windPanels} color="#7b817b" />
+      <DamageMeshes transforms={simulatedDamage.windDebris} color="#5e625d" />
       <DamageMeshes transforms={simulatedDamage.structuralCracks} color="#261714" opacity={0.96} />
       <DamageMeshes transforms={simulatedDamage.structuralBraces} color="#b56a2e" />
+      <DamageMeshes transforms={simulatedDamage.collapsedPanels} color="#6f685d" />
     </group>
   );
 }
@@ -328,7 +374,7 @@ function DisasterLayers({ plan }: { plan: DisasterPlan; }) {
 function DamageMeshes({ transforms, color, opacity = 1 }: { transforms: DisasterPlan["simulatedDamage"]["fireScorch"]; color: string; opacity?: number; }) {
   return <>
     {transforms.map((transform, index) => (
-      <mesh key={`${color}-${index}`} castShadow position={transform.position} rotation={[0, transform.yawRad, 0]} scale={transform.scale}>
+      <mesh key={`${color}-${index}`} castShadow position={transform.position} rotation={transform.rotation ?? [0, transform.yawRad, 0]} scale={transform.scale}>
         <boxGeometry args={[1, 1, 0.08]} />
         <meshStandardMaterial color={color} emissive={opacity < 1 ? color : "#000000"} emissiveIntensity={opacity < 1 ? 0.08 : 0} opacity={opacity} transparent={opacity < 1} roughness={0.74} metalness={color === "#73827b" ? 0.42 : 0.06} />
       </mesh>
@@ -348,14 +394,24 @@ function Entrance({ plan }: { plan: ScenePlan; }) {
 function FacadeModules({ plan }: { plan: ScenePlan; }) {
   return (
     <group>
-      {plan.facadeModules.map((module, index) => (
-        <mesh castShadow key={`${module.type}-${index}`} position={module.position} rotation={[0, module.yawRad, 0]} scale={module.scale}>
-          <boxGeometry args={[1, 1, 1]} />
-          <meshStandardMaterial color={module.type === "canopy" ? "#3c4a49" : "#7a6759"} roughness={0.82} />
-        </mesh>
-      ))}
+      {plan.facadeModules.map((module, index) => <FacadeModule key={`${module.type}-${index}`} module={module} />)}
     </group>
   );
+}
+
+function FacadeModule({ module }: { module: ScenePlan["facadeModules"][number]; }) {
+  const stone = module.type === "canopy" ? "#394746" : "#817d72";
+  if (module.type === "portico") {
+    return <group position={module.position} rotation={[0, module.yawRad, 0]}>
+      <mesh castShadow position={[0, module.scale[1] * 0.45, 0]} scale={[module.scale[0], 0.38, module.scale[2]]}><boxGeometry /><meshStandardMaterial color="#79766c" roughness={0.86} /></mesh>
+      {[-0.38, 0.38].map((x) => <mesh castShadow key={x} position={[x * module.scale[0], 0, module.scale[2] * 0.3]} scale={[0.48, module.scale[1], 0.48]}><cylinderGeometry args={[0.55, 0.7, 1, 10]} /><meshStandardMaterial color="#a09b8c" roughness={0.9} /></mesh>)}
+    </group>;
+  }
+  return <group position={module.position} rotation={[0, module.yawRad, 0]}>
+    <mesh castShadow scale={module.scale}><boxGeometry /><meshStandardMaterial color={stone} roughness={0.82} /></mesh>
+    {module.type === "tower" ? <mesh castShadow position={[0, module.scale[1] * 0.56, 0]} scale={[module.scale[0] * 1.08, 1.1, module.scale[2] * 1.08]}><boxGeometry /><meshStandardMaterial color="#4d5550" roughness={0.84} /></mesh> : null}
+    {module.type === "bay" ? <mesh position={[0, 0, module.scale[2] * 0.52]} scale={[module.scale[0] * 0.78, module.scale[1] * 0.72, 0.12]}><boxGeometry /><meshStandardMaterial color="#a9c2bf" metalness={0.14} roughness={0.24} /></mesh> : null}
+  </group>;
 }
 
 function Roof({ plan }: { plan: ScenePlan; }) {
@@ -371,34 +427,44 @@ function Roof({ plan }: { plan: ScenePlan; }) {
     shape.closePath();
     return new ExtrudeGeometry(shape, { depth: 0.7, bevelEnabled: false });
   }, [plan.outline]);
-  const gableGeometry = useMemo(() => {
-    const ridgeHeight = Math.min(5, Math.max(2, plan.heightM * 0.14));
-    const vertices = new Float32Array([
-      plan.bounds.minX, plan.heightM, plan.bounds.minZ,
-      plan.bounds.maxX, plan.heightM, plan.bounds.minZ,
-      plan.bounds.maxX, plan.heightM, plan.bounds.maxZ,
-      plan.bounds.minX, plan.heightM, plan.bounds.maxZ,
-      plan.bounds.minX, plan.heightM + ridgeHeight, 0,
-      plan.bounds.maxX, plan.heightM + ridgeHeight, 0
-    ]);
-    const geometry = new BufferGeometry();
-    geometry.setAttribute("position", new Float32BufferAttribute(vertices, 3));
-    geometry.setIndex([0, 1, 5, 0, 5, 4, 3, 4, 5, 3, 5, 2, 0, 4, 3, 1, 2, 5, 0, 3, 2, 0, 2, 1]);
-    geometry.computeVertexNormals();
-    return geometry;
-  }, [plan.bounds, plan.heightM]);
+  const pitchedGeometry = useMemo(() => createPitchedRoofGeometry(plan), [plan]);
 
   useEffect(() => () => flatGeometry.dispose(), [flatGeometry]);
-  useEffect(() => () => gableGeometry.dispose(), [gableGeometry]);
+  useEffect(() => () => pitchedGeometry.dispose(), [pitchedGeometry]);
 
-  // A bounding-box gable overhangs an irregular OSM footprint. Preserve the
-  // procedural gable only for simple rectangular plans; otherwise keep the roof
-  // on the authoritative ground polygon.
-  if (plan.roofType === "flat" || plan.outline.length !== 4) {
+  if (plan.roofType === "flat") {
     return <mesh castShadow geometry={flatGeometry} position={[0, plan.heightM, 0]} rotation={[-Math.PI / 2, 0, 0]}><meshStandardMaterial color="#4d5755" roughness={0.86} /></mesh>;
   }
 
-  return <mesh castShadow geometry={gableGeometry}><meshStandardMaterial color="#55615d" roughness={0.74} side={DoubleSide} /></mesh>;
+  return <mesh castShadow geometry={pitchedGeometry}><meshStandardMaterial color={plan.roofType === "gable" ? "#4a5552" : "#59625c"} roughness={0.72} side={DoubleSide} /></mesh>;
+}
+
+function createPitchedRoofGeometry(plan: ScenePlan) {
+  const vertices: number[] = [];
+  const ridgeHeight = Math.min(7, Math.max(2.4, plan.heightM * 0.18));
+  const centerX = (plan.bounds.minX + plan.bounds.maxX) / 2;
+  const centerZ = (plan.bounds.minZ + plan.bounds.maxZ) / 2;
+  const longOnX = plan.bounds.width >= plan.bounds.depth;
+  const ridgeFor = (point: { x: number; z: number }): [number, number, number] => plan.roofType === "hip"
+    ? [centerX, plan.heightM + ridgeHeight, centerZ]
+    : [longOnX ? point.x : centerX, plan.heightM + ridgeHeight, longOnX ? centerZ : point.z];
+  plan.outline.forEach((point, index) => {
+    const next = plan.outline[(index + 1) % plan.outline.length];
+    const ridgeA = ridgeFor(point);
+    const ridgeB = ridgeFor(next);
+    vertices.push(
+      point.x, plan.heightM, point.z,
+      next.x, plan.heightM, next.z,
+      ...ridgeB,
+      point.x, plan.heightM, point.z,
+      ...ridgeB,
+      ...ridgeA
+    );
+  });
+  const geometry = new BufferGeometry();
+  geometry.setAttribute("position", new Float32BufferAttribute(vertices, 3));
+  geometry.computeVertexNormals();
+  return geometry;
 }
 
 function Ground() {
