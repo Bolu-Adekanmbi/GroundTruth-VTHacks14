@@ -378,3 +378,25 @@ This log records completed implementation phases. It does not authorize starting
   - Google Open Buildings 2.5D is intentionally not wired in: its published coverage does not make it a default source for U.S. locations, and it remains a low-confidence regional fallback only.
   - Modules are recognizable procedural additions, not surveyed or photogrammetric reconstruction. They represent only the reviewed visible facade and can be removed from Traits.
 - Suggested commit message: `phase-15b: enrich OSM height and facade modules`
+
+## Phase 15E - Procedural Presentation Fidelity
+
+- Completion date: 2026-09-19
+- Change summary: Added bounded facade detail shared by the live viewport and GLB exporter: framed windows, floor bands, flat-roof parapets, and entry steps. Refined the map-aligned three-quarter camera, lighting, contact shadows, and ground grid. Scorched Nebraska now includes foreground-biased blackened/broken windows, roof scars, debris, and overgrowth. Disaster Response now creates deterministic, severity-scaled visual treatments per damage type: facade fire scorch, floodwater and tide staining, displaced wind panels, or structural cracks and braces. These are illustrative simulated conditions, not structural assessments.
+- Automated checks and results:
+  - `npm run typecheck` - passed
+  - `npm test` - passed, 83 tests
+  - `npm run lint` - passed
+  - `npm run build` - passed
+  - `git diff --check` - passed
+  - Targeted Playwright Base, Scorched, and Disaster canvas checks - passed; refreshed the two Base and Scorched baselines intentionally changed by this work
+- Manual review instructions:
+  - Run `npm run dev`, open the Base scene, and use **Fit building**. Confirm window frames, floor courses, entrance steps, and flat-roof parapets support the form without changing the OSM footprint.
+  - Select **Scorched Nebraska** and increase Scorch intensity. Confirm boarded/broken openings, facade char, roof scars, debris, and vegetation become visibly stronger.
+  - Select **Disaster Response**, choose each of Fire, Flood, Wind, and Structural, then move **Damage severity** from low to high. Confirm each type has a visibly different simulated treatment and greater severity adds more treatment.
+  - Download a GLB for Base, Scorched, and each Disaster type. Open each in an independent GLB viewer and confirm the named architectural and scenario geometry appears without the editor grid, controls, or labels.
+- Known limitations or deferred items:
+  - Geometry is deterministic procedural visualization driven by editable traits and footprint geometry; it is not photo-textured, surveyed, photogrammetric, or a structural-safety determination.
+  - The remaining Phase 7 rotated-footprint renderer alignment issue can still affect a model derived from a manually rotated footprint.
+  - The full local Playwright run was interrupted by the environment after its first seven passing tests; the affected Base, Scorched, Disaster, and corrected-coordinate browser checks were rerun in focused groups and passed.
+- Suggested commit message: `phase-15e: improve procedural scene fidelity`

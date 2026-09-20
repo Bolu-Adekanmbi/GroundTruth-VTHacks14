@@ -89,6 +89,28 @@ describe("buildDisasterPlan", () => {
       scene
     );
     expect(highSeverity.overlays.length).toBeGreaterThan(lowSeverity.overlays.length);
+    expect(highSeverity.simulatedDamage.fireScorch.length).toBeGreaterThan(lowSeverity.simulatedDamage.fireScorch.length);
+  });
+
+  it.each(["flood", "wind", "structural"] as const)("builds a distinct %s damage treatment", (damageType) => {
+    const scene = buildScenePlan(project);
+    const plan = buildDisasterPlan({
+      ...project,
+      scenario: {
+        ...project.scenario,
+        disaster: { ...project.scenario.disaster, damageType, severity: 0.72 }
+      }
+    }, scene);
+
+    if (damageType === "flood") {
+      expect(plan.simulatedDamage.floodWater).not.toBeNull();
+      expect(plan.simulatedDamage.floodStains.length).toBeGreaterThan(0);
+    }
+    if (damageType === "wind") expect(plan.simulatedDamage.windPanels.length).toBeGreaterThan(0);
+    if (damageType === "structural") {
+      expect(plan.simulatedDamage.structuralCracks.length).toBeGreaterThan(0);
+      expect(plan.simulatedDamage.structuralBraces.length).toBeGreaterThan(0);
+    }
   });
 
   it("includes hazard zone information when hazards are present", () => {

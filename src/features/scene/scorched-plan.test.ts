@@ -18,6 +18,7 @@ describe("buildScorchedPlan", () => {
 
     expect(high.boardedWindows.length).toBeGreaterThan(low.boardedWindows.length);
     expect(high.scorchPatches.length).toBeGreaterThan(low.scorchPatches.length);
+    expect(high.roofDamage.length).toBeGreaterThan(low.roofDamage.length);
     expect(high.debris.length).toBeGreaterThan(low.debris.length);
     expect(high.overgrowth.length).toBeGreaterThan(low.overgrowth.length);
   });

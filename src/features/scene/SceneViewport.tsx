@@ -18,6 +18,7 @@ import {
   ExtrudeGeometry,
   Float32BufferAttribute,
   InstancedMesh,
+  Matrix4,
   Object3D,
   PerspectiveCamera,
   Shape
@@ -82,11 +83,13 @@ export const SceneViewport = forwardRef<SceneViewportHandle, { project: ScenePro
 function SceneContents({ command, plan, scorchedPlan, disasterPlan }: { command: { id: number; type: CameraCommand; }; plan: ScenePlan; scorchedPlan: ScorchedPlan | null; disasterPlan: DisasterPlan | null; }) {
   return (
     <>
-      <ambientLight intensity={1.2} />
-      <directionalLight castShadow intensity={2.1} position={[55, 85, 35]} shadow-mapSize={[1024, 1024]} />
-      <hemisphereLight args={["#e7f3ef", "#5e6259", 1.2]} />
+      <ambientLight intensity={0.62} />
+      <directionalLight castShadow intensity={2.6} position={[55, 85, 35]} shadow-mapSize={[2048, 2048]} />
+      <hemisphereLight args={["#e7f3ef", "#45504b", 0.72]} />
       <BuildingMass plan={plan} scorched={Boolean(scorchedPlan)} />
       <WindowInstances plan={plan} scorched={Boolean(scorchedPlan)} />
+      <WindowFrames plan={plan} scorched={Boolean(scorchedPlan)} />
+      <ArchitecturalDetails plan={plan} />
       <Entrance plan={plan} />
       <FacadeModules plan={plan} />
       <Roof plan={plan} />
@@ -149,16 +152,82 @@ const WindowInstances = memo(function WindowInstances({ plan, scorched }: { plan
   );
 });
 
+const WindowFrames = memo(function WindowFrames({ plan, scorched }: { plan: ScenePlan; scorched: boolean; }) {
+  const { vertical, horizontal } = useMemo(() => {
+    const object = new Object3D();
+    const vertical: Matrix4[] = [];
+    const horizontal: Matrix4[] = [];
+    plan.windows.forEach((window) => {
+      const tangent = { x: Math.cos(window.yawRad), z: -Math.sin(window.yawRad) };
+      [-1, 1].forEach((side) => {
+        object.position.set(
+          window.position[0] + tangent.x * window.scale[0] * 0.52 * side,
+          window.position[1],
+          window.position[2] + tangent.z * window.scale[0] * 0.52 * side
+        );
+        object.rotation.set(0, window.yawRad, 0);
+        object.scale.set(0.09, window.scale[1] + 0.18, 0.1);
+        object.updateMatrix();
+        vertical.push(object.matrix.clone());
+      });
+      [-1, 1].forEach((side) => {
+        object.position.set(window.position[0], window.position[1] + window.scale[1] * 0.52 * side, window.position[2]);
+        object.rotation.set(0, window.yawRad, 0);
+        object.scale.set(window.scale[0] + 0.18, 0.09, 0.1);
+        object.updateMatrix();
+        horizontal.push(object.matrix.clone());
+      });
+    });
+    return { vertical, horizontal };
+  }, [plan.windows]);
+
+  return <>
+    <FrameInstances matrices={vertical} color={scorched ? "#211b18" : "#334443"} />
+    <FrameInstances matrices={horizontal} color={scorched ? "#211b18" : "#334443"} />
+  </>;
+});
+
+function FrameInstances({ matrices, color }: { matrices: Matrix4[]; color: string; }) {
+  const meshRef = useRef<InstancedMesh>(null);
+  useLayoutEffect(() => {
+    matrices.forEach((matrix, index) => meshRef.current?.setMatrixAt(index, matrix));
+    if (meshRef.current) meshRef.current.instanceMatrix.needsUpdate = true;
+  }, [matrices]);
+  if (matrices.length === 0) return null;
+  return <instancedMesh castShadow ref={meshRef} args={[undefined, undefined, matrices.length]}>
+    <boxGeometry args={[1, 1, 1]} />
+    <meshStandardMaterial color={color} roughness={0.55} metalness={0.16} />
+  </instancedMesh>;
+}
+
+function ArchitecturalDetails({ plan }: { plan: ScenePlan; }) {
+  return <group>
+    {plan.facadeBands.map((band, index) => <mesh castShadow key={`band-${index}`} position={band.position} rotation={[0, band.yawRad, 0]} scale={band.scale}>
+      <boxGeometry args={[1, 1, 1]} />
+      <meshStandardMaterial color="#78817a" roughness={0.78} />
+    </mesh>)}
+    {plan.roofType === "flat" ? plan.parapetEdges.map((edge, index) => <mesh castShadow key={`parapet-${index}`} position={edge.position} rotation={[0, edge.yawRad, 0]} scale={edge.scale}>
+      <boxGeometry args={[1, 1, 1]} />
+      <meshStandardMaterial color="#495754" roughness={0.8} />
+    </mesh>) : null}
+    {plan.entranceSteps.map((step, index) => <mesh castShadow key={`step-${index}`} position={step.position} rotation={[0, step.yawRad, 0]} scale={step.scale}>
+      <boxGeometry args={[1, 1, 1]} />
+      <meshStandardMaterial color="#68706b" roughness={0.9} />
+    </mesh>)}
+  </group>;
+}
+
 function ScorchedLayers({ plan }: { plan: ScorchedPlan; }) {
   return (
     <group>
       <TransformInstances transforms={plan.boardedWindows} color="#76543a" geometry="board" />
-      <TransformInstances transforms={plan.brokenWindows} color="#101516" geometry="window" />
-      <TransformInstances transforms={plan.debris} color="#6b6259" geometry="debris" />
+      <TransformInstances transforms={plan.brokenWindows} color="#0d1110" geometry="window" />
+      <TransformInstances transforms={plan.roofDamage} color="#241916" geometry="debris" />
+      <TransformInstances transforms={plan.debris} color="#4c4038" geometry="debris" />
       {plan.scorchPatches.map((patch, index) => (
         <mesh key={`scorch-${index}`} position={patch.position} rotation={[0, patch.yawRad, 0]} scale={patch.scale}>
           <planeGeometry args={[1, 1]} />
-          <meshBasicMaterial color="#241916" opacity={0.78} transparent />
+          <meshBasicMaterial color={index % 3 === 0 ? "#130d09" : "#362118"} opacity={0.9} transparent />
         </mesh>
       ))}
       {plan.overgrowth.map((tuft, index) => (
@@ -200,6 +269,7 @@ function TransformInstances({ transforms, color, geometry }: { transforms: Scorc
 }
 
 function DisasterLayers({ plan }: { plan: DisasterPlan; }) {
+  const { simulatedDamage } = plan;
   return (
     <group>
       {/* Hazard zone glow */}
@@ -240,8 +310,30 @@ function DisasterLayers({ plan }: { plan: DisasterPlan; }) {
           </mesh>
         );
       })}
+      <DamageMeshes transforms={simulatedDamage.fireScorch} color="#2b1712" opacity={0.92} />
+      {simulatedDamage.floodWater ? (
+        <mesh position={simulatedDamage.floodWater.position} scale={simulatedDamage.floodWater.scale}>
+          <boxGeometry args={[1, 1, 1]} />
+          <meshStandardMaterial color="#245f72" emissive="#163d4a" emissiveIntensity={0.18} opacity={0.55} transparent roughness={0.28} metalness={0.18} />
+        </mesh>
+      ) : null}
+      <DamageMeshes transforms={simulatedDamage.floodStains} color="#315a60" opacity={0.82} />
+      <DamageMeshes transforms={simulatedDamage.windPanels} color="#73827b" />
+      <DamageMeshes transforms={simulatedDamage.structuralCracks} color="#261714" opacity={0.96} />
+      <DamageMeshes transforms={simulatedDamage.structuralBraces} color="#b56a2e" />
     </group>
   );
+}
+
+function DamageMeshes({ transforms, color, opacity = 1 }: { transforms: DisasterPlan["simulatedDamage"]["fireScorch"]; color: string; opacity?: number; }) {
+  return <>
+    {transforms.map((transform, index) => (
+      <mesh key={`${color}-${index}`} castShadow position={transform.position} rotation={[0, transform.yawRad, 0]} scale={transform.scale}>
+        <boxGeometry args={[1, 1, 0.08]} />
+        <meshStandardMaterial color={color} emissive={opacity < 1 ? color : "#000000"} emissiveIntensity={opacity < 1 ? 0.08 : 0} opacity={opacity} transparent={opacity < 1} roughness={0.74} metalness={color === "#73827b" ? 0.42 : 0.06} />
+      </mesh>
+    ))}
+  </>;
 }
 
 function Entrance({ plan }: { plan: ScenePlan; }) {
@@ -316,8 +408,8 @@ function Ground() {
         <planeGeometry args={[420, 420]} />
         <meshStandardMaterial color="#aeb9af" roughness={1} />
       </mesh>
-      <Grid args={[260, 260]} cellColor="#6c7c74" cellSize={10} cellThickness={0.4} fadeDistance={220} fadeStrength={1} sectionColor="#5c6e65" sectionSize={50} sectionThickness={0.8} />
-      <ContactShadows blur={2.5} far={90} frames={1} opacity={0.35} position={[0, 0.02, 0]} resolution={512} scale={120} />
+      <Grid args={[260, 260]} cellColor="#9da8a1" cellSize={10} cellThickness={0.12} fadeDistance={120} fadeStrength={1.8} sectionColor="#88958d" sectionSize={50} sectionThickness={0.22} />
+      <ContactShadows blur={2.2} far={90} frames={1} opacity={0.48} position={[0, 0.02, 0]} resolution={1024} scale={120} />
     </>
   );
 }
@@ -339,7 +431,7 @@ function CameraController({ command, plan }: { command: { id: number; type: Came
       (2 * Math.tan(verticalHalfFov));
     const distance = Math.max(horizontalDistance, verticalDistance, 26) * 1.2;
     // Map-aligned elevated view: east is screen-right and north (-Z) is screen-top.
-    camera.position.set(0, distance * 1.35, distance * 0.22);
+    camera.position.set(distance * 0.72, distance * 0.82, distance * 0.68);
     controls.current?.target.set(0, currentPlan.heightM * 0.4, 0);
     controls.current?.update();
     controls.current?.saveState();

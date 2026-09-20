@@ -76,4 +76,13 @@ describe("buildScenePlan", () => {
     expect(plan.facadeModules.map((module) => module.type)).toEqual(["canopy", "portico"]);
     expect(plan.facadeModules.every((module) => module.position[1] > 0)).toBe(true);
   });
+
+  it("derives restrained architectural details from the authoritative footprint", () => {
+    const plan = buildScenePlan(demoProject("willard-building"));
+
+    expect(plan.facadeBands).toHaveLength(plan.facades.length * (plan.floors - 1));
+    expect(plan.parapetEdges).toHaveLength(plan.facades.length);
+    expect(plan.entranceSteps).toHaveLength(3);
+    expect(plan.entranceSteps.every((step) => step.position[1] > 0)).toBe(true);
+  });
 });

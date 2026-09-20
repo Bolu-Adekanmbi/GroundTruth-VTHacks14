@@ -13,6 +13,8 @@ describe("GLB export", () => {
     expect(scene.userData).toMatchObject({ units: "meters", up_axis: "Y", scenario_mode: "base" });
     expect(building?.getObjectByName("BuildingMass")).toBeDefined();
     expect(building?.getObjectByName("Windows")).toBeDefined();
+    expect(building?.getObjectByName("WindowFrames")).toBeDefined();
+    expect(building?.getObjectByName("ArchitecturalDetails")).toBeDefined();
     expect(building?.getObjectByName("PrimaryEntrance")).toBeDefined();
     expect(building?.getObjectByName("VisibleFacadeModules")).toBeDefined();
     expect(building?.getObjectByName("Roof")).toBeDefined();
@@ -39,9 +41,27 @@ describe("GLB export", () => {
     const loaded = await new GLTFLoader().parseAsync(binary, "");
 
     expect(scene.getObjectByName("ScorchedScenario")).toBeDefined();
+    expect(scene.getObjectByName("RoofDamage")).toBeDefined();
     expect(binary.byteLength).toBeGreaterThan(1_000);
     expect([...header]).toEqual([0x67, 0x6c, 0x54, 0x46]);
     expect(loaded.scene.getObjectByName("BuildingMass")).toBeDefined();
     expect(loaded.scene.getObjectByName("ScorchedScenario")).toBeDefined();
+  });
+
+  it("exports damage-type-specific disaster nodes", () => {
+    const base = getDemoSceneById("willard-building")!;
+    const project = {
+      ...base,
+      scenario: {
+        ...base.scenario,
+        activeMode: "disaster" as const,
+        disaster: { ...base.scenario.disaster, damageType: "flood" as const, severity: 0.7 }
+      }
+    };
+    const scene = buildGlbScene(project);
+
+    expect(scene.getObjectByName("DisasterResponseScenario")).toBeDefined();
+    expect(scene.getObjectByName("FloodWater")).toBeDefined();
+    expect(scene.getObjectByName("FloodStains")).toBeDefined();
   });
 });

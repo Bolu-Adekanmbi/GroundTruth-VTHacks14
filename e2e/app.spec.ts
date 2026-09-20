@@ -9,7 +9,7 @@ test("loads the GroundTruth workspace shell", async ({ page }) => {
   await expect(page.getByRole("radiogroup", { name: "Scene mode" })).toBeVisible();
   await expect(page.getByLabel("GIS map with active footprint")).toBeVisible();
   await expect(
-    page.getByRole("region", { name: "Map and 3D workspace" }).getByText("37.22887, -80.42354")
+    page.getByRole("region", { name: "Map and 3D workspace" }).getByText("37.22903, -80.42370")
   ).toBeVisible();
 });
 
@@ -19,13 +19,13 @@ test("switches curated samples and updates GIS footprint metadata", async ({ pag
   const workspace = page.getByRole("region", { name: "Map and 3D workspace" });
   const output = page.getByRole("complementary", { name: "Evidence and output" });
 
-  await expect(workspace.getByText("37.22887, -80.42354")).toBeVisible();
-  await expect(output.getByText("154 m x 57 m")).toBeVisible();
+  await expect(workspace.getByText("37.22903, -80.42370")).toBeVisible();
+  await expect(output.getByText("113 m x 113 m")).toBeVisible();
 
   await page.getByLabel("Curated example").selectOption("willard-building");
 
-  await expect(output.getByText("40.79576, -77.86442")).toBeVisible();
-  await expect(output.getByText("91 m x 49 m")).toBeVisible();
+  await expect(output.getByText("40.79575, -77.86437")).toBeVisible();
+  await expect(output.getByText("103 m x 78 m")).toBeVisible();
 });
 
 test("manually corrects footprint geometry and facade orientation", async ({ page }) => {

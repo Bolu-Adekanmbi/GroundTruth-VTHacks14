@@ -41,6 +41,12 @@ export interface FacadeModulePlan {
   yawRad: number;
 }
 
+export interface DetailTransform {
+  position: [number, number, number];
+  scale: [number, number, number];
+  yawRad: number;
+}
+
 export interface ScenePlan {
   projectId: string;
   outline: LocalMeterPoint[];
@@ -53,6 +59,9 @@ export interface ScenePlan {
   facades: FacadePlan[];
   windows: WindowPlan[];
   facadeModules: FacadeModulePlan[];
+  facadeBands: DetailTransform[];
+  parapetEdges: DetailTransform[];
+  entranceSteps: DetailTransform[];
   entrance: { position: [number, number, number]; yawRad: number };
   frontFacadeIndex: number;
   seed: number;
@@ -119,6 +128,9 @@ export function buildScenePlan(project: SceneProject): ScenePlan {
   const windows = buildWindows(markedFacades, project.building, heightM);
   const entranceFacade = markedFacades[entranceFacadeIndex];
   const facadeModules = buildFacadeModules(project.building.facadeModules ?? [], entranceFacade, heightM);
+  const facadeBands = buildFacadeBands(markedFacades, project.building.floors, heightM);
+  const parapetEdges = buildParapetEdges(markedFacades, heightM);
+  const entranceSteps = buildEntranceSteps(entranceFacade);
 
   return {
     projectId: project.id,
@@ -132,6 +144,9 @@ export function buildScenePlan(project: SceneProject): ScenePlan {
     facades: markedFacades,
     windows,
     facadeModules,
+    facadeBands,
+    parapetEdges,
+    entranceSteps,
     entrance: {
       position: [
         entranceFacade.midpoint.x + Math.sin(entranceFacade.yawRad) * ENTRANCE_SURFACE_OFFSET_M,
@@ -143,6 +158,46 @@ export function buildScenePlan(project: SceneProject): ScenePlan {
     frontFacadeIndex,
     seed: hashProject(project)
   };
+}
+
+function buildFacadeBands(facades: FacadePlan[], floors: number, heightM: number): DetailTransform[] {
+  const floorHeight = heightM / floors;
+  return facades.flatMap((facade) =>
+    Array.from({ length: Math.max(0, floors - 1) }, (_, index) => ({
+      position: [
+        facade.midpoint.x + Math.sin(facade.yawRad) * 0.14,
+        floorHeight * (index + 1),
+        facade.midpoint.z + Math.cos(facade.yawRad) * 0.14
+      ] as [number, number, number],
+      scale: [Math.max(1.2, facade.lengthM - 0.35), 0.14, 0.16] as [number, number, number],
+      yawRad: facade.yawRad
+    }))
+  );
+}
+
+function buildParapetEdges(facades: FacadePlan[], heightM: number): DetailTransform[] {
+  return facades.map((facade) => ({
+    position: [
+      facade.midpoint.x + Math.sin(facade.yawRad) * 0.08,
+      heightM + 0.38,
+      facade.midpoint.z + Math.cos(facade.yawRad) * 0.08
+    ],
+    scale: [Math.max(1.2, facade.lengthM), 0.76, 0.2],
+    yawRad: facade.yawRad
+  }));
+}
+
+function buildEntranceSteps(facade: FacadePlan): DetailTransform[] {
+  const depthDirection = { x: Math.sin(facade.yawRad), z: Math.cos(facade.yawRad) };
+  return [0, 1, 2].map((index) => ({
+    position: [
+      facade.midpoint.x + depthDirection.x * (0.45 + index * 0.38),
+      0.14 + index * 0.1,
+      facade.midpoint.z + depthDirection.z * (0.45 + index * 0.38)
+    ],
+    scale: [3.6 + index * 0.35, 0.24, 0.9],
+    yawRad: facade.yawRad
+  }));
 }
 
 function buildFacadeModules(types: FacadeModuleType[], facade: FacadePlan, heightM: number): FacadeModulePlan[] {

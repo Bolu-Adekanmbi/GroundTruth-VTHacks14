@@ -41,6 +41,8 @@ export function buildGlbScene(project: SceneProject) {
   building.userData = { building_type: project.building.buildingType, height_m: plan.heightM, footprint_source: project.footprint.source };
   building.add(createBuildingMass(plan, Boolean(scorchedPlan)));
   building.add(createWindows(plan, Boolean(scorchedPlan)));
+  building.add(createWindowFrames(plan, Boolean(scorchedPlan)));
+  building.add(createArchitecturalDetails(plan));
   building.add(createEntrance(plan));
   building.add(createFacadeModules(plan));
   building.add(createRoof(plan));
@@ -117,6 +119,39 @@ function createEntrance(plan: ScenePlan) {
   return mesh;
 }
 
+function createWindowFrames(plan: ScenePlan, scorched: boolean) {
+  const group = new Group();
+  group.name = "WindowFrames";
+  const material = new MeshStandardMaterial({ color: scorched ? "#211b18" : "#334443", roughness: 0.55, metalness: 0.16 });
+  plan.windows.forEach((window, index) => {
+    const tangent = { x: Math.cos(window.yawRad), z: -Math.sin(window.yawRad) };
+    [-1, 1].forEach((side) => {
+      const frame = new Mesh(new BoxGeometry(0.09, window.scale[1] + 0.18, 0.1), material);
+      frame.name = `WindowFrameVertical_${index + 1}_${side > 0 ? "R" : "L"}`;
+      frame.position.set(window.position[0] + tangent.x * window.scale[0] * 0.52 * side, window.position[1], window.position[2] + tangent.z * window.scale[0] * 0.52 * side);
+      frame.rotation.y = window.yawRad;
+      group.add(frame);
+    });
+    [-1, 1].forEach((side) => {
+      const frame = new Mesh(new BoxGeometry(window.scale[0] + 0.18, 0.09, 0.1), material);
+      frame.name = `WindowFrameHorizontal_${index + 1}_${side > 0 ? "T" : "B"}`;
+      frame.position.set(window.position[0], window.position[1] + window.scale[1] * 0.52 * side, window.position[2]);
+      frame.rotation.y = window.yawRad;
+      group.add(frame);
+    });
+  });
+  return group;
+}
+
+function createArchitecturalDetails(plan: ScenePlan) {
+  const group = new Group();
+  group.name = "ArchitecturalDetails";
+  addTransforms(group, "FacadeBands", plan.facadeBands, "#78817a", [1, 1, 1]);
+  if (plan.roofType === "flat") addTransforms(group, "ParapetEdges", plan.parapetEdges, "#495754", [1, 1, 1]);
+  addTransforms(group, "EntranceSteps", plan.entranceSteps, "#68706b", [1, 1, 1]);
+  return group;
+}
+
 function createFacadeModules(plan: ScenePlan) {
   const group = new Group();
   group.name = "VisibleFacadeModules";
@@ -164,13 +199,14 @@ function createScorchedGroup(plan: ScorchedPlan) {
   group.name = "ScorchedScenario";
   addTransforms(group, "BoardedWindows", plan.boardedWindows, "#76543a", [1, 1, 1]);
   addTransforms(group, "BrokenWindows", plan.brokenWindows, "#101516", [1, 1, 1]);
+  addTransforms(group, "RoofDamage", plan.roofDamage, "#241916", [1, 1, 1]);
   addTransforms(group, "Debris", plan.debris, "#6b6259", [1, 1, 1]);
   addTransforms(group, "ScorchPatches", plan.scorchPatches, "#241916", [1, 1, 0.04], true);
   addTransforms(group, "Overgrowth", plan.overgrowth, "#405b38", [0.55, 1, 0.55], false, "cone");
   return group;
 }
 
-function addTransforms(group: Group, name: string, transforms: ScorchedPlan["debris"], color: string, dimensions: [number, number, number], transparent = false, kind: "box" | "cone" = "box") {
+function addTransforms(group: Group, name: string, transforms: { position: [number, number, number]; scale: [number, number, number]; yawRad: number; }[], color: string, dimensions: [number, number, number], transparent = false, kind: "box" | "cone" = "box") {
   const node = new Group();
   node.name = name;
   const geometry = kind === "cone" ? new ConeGeometry(dimensions[0], dimensions[1], 5) : new BoxGeometry(...dimensions);
@@ -205,6 +241,19 @@ function createDisasterGroup(disaster: ReturnType<typeof buildDisasterPlan>, sce
     mesh.scale.set(...overlay.scale);
     group.add(mesh);
   });
+  addTransforms(group, "FireScorch", disaster.simulatedDamage.fireScorch, "#2b1712", [1, 1, 0.08], true);
+  if (disaster.simulatedDamage.floodWater) {
+    const water = disaster.simulatedDamage.floodWater;
+    const mesh = new Mesh(new BoxGeometry(1, 1, 1), new MeshStandardMaterial({ color: "#245f72", emissive: "#163d4a", emissiveIntensity: 0.18, transparent: true, opacity: 0.55, roughness: 0.28, metalness: 0.18 }));
+    mesh.name = "FloodWater";
+    mesh.position.set(...water.position);
+    mesh.scale.set(...water.scale);
+    group.add(mesh);
+  }
+  addTransforms(group, "FloodStains", disaster.simulatedDamage.floodStains, "#315a60", [1, 1, 0.08], true);
+  addTransforms(group, "WindDisplacement", disaster.simulatedDamage.windPanels, "#73827b", [1, 1, 0.08]);
+  addTransforms(group, "StructuralCracks", disaster.simulatedDamage.structuralCracks, "#261714", [1, 1, 0.08], true);
+  addTransforms(group, "StructuralBraces", disaster.simulatedDamage.structuralBraces, "#b56a2e", [1, 1, 0.08]);
   return group;
 }
 
