@@ -229,7 +229,7 @@ const rawDemoScenes = [
       floors: 3,
       heightM: 17,
       material: "concrete",
-      roofType: "gable",
+      roofType: "flat",
       windowPattern: "vertical-bands",
       entrancePosition: "east"
     },

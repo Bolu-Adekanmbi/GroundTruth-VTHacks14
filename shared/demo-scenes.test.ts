@@ -24,7 +24,7 @@ describe("demo scene fixtures", () => {
 
     expect(first.id).not.toBe(second.id);
     expect(first.building.material).not.toBe(second.building.material);
-    expect(first.building.roofType).not.toBe(second.building.roofType);
+    expect(first.building.floors).not.toBe(second.building.floors);
     expect(first.footprint.widthM).not.toBe(second.footprint.widthM);
   });
 });
