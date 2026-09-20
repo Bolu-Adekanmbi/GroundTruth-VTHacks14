@@ -1440,6 +1440,8 @@ code {
   }
 
   .workspace {
+    width: 100%;
+    min-width: 0;
     grid-template-columns: 1fr;
   }
 
@@ -1453,10 +1455,20 @@ code {
     grid-template-columns: 1fr;
   }
 
-  .center-workspace {
+  .workspace .center-workspace {
+    width: 100%;
     height: auto;
     min-height: 520px;
+    min-width: 0;
     position: static;
+  }
+
+  .viewport-grid,
+  .viewport-panel,
+  .gis-map-stage,
+  .scene-stage {
+    width: 100%;
+    min-width: 0;
   }
 
   .statusbar {
@@ -1508,7 +1520,7 @@ code {
     order: 1;
   }
 
-  .center-workspace {
+  .workspace .center-workspace {
     height: auto;
     order: 2;
     min-height: auto;
