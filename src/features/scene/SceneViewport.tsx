@@ -88,6 +88,7 @@ function SceneContents({ command, plan, scorchedPlan, disasterPlan }: { command:
       <BuildingMass plan={plan} scorched={Boolean(scorchedPlan)} />
       <WindowInstances plan={plan} scorched={Boolean(scorchedPlan)} />
       <Entrance plan={plan} />
+      <FacadeModules plan={plan} />
       <Roof plan={plan} />
       {scorchedPlan ? <ScorchedLayers plan={scorchedPlan} /> : null}
       {disasterPlan ? <DisasterLayers plan={disasterPlan} /> : null}
@@ -249,6 +250,19 @@ function Entrance({ plan }: { plan: ScenePlan; }) {
       <boxGeometry args={[3.2, 2.7, 0.42]} />
       <meshStandardMaterial color="#263639" metalness={0.18} roughness={0.48} />
     </mesh>
+  );
+}
+
+function FacadeModules({ plan }: { plan: ScenePlan; }) {
+  return (
+    <group>
+      {plan.facadeModules.map((module, index) => (
+        <mesh castShadow key={`${module.type}-${index}`} position={module.position} rotation={[0, module.yawRad, 0]} scale={module.scale}>
+          <boxGeometry args={[1, 1, 1]} />
+          <meshStandardMaterial color={module.type === "canopy" ? "#3c4a49" : "#7a6759"} roughness={0.82} />
+        </mesh>
+      ))}
+    </group>
   );
 }
 

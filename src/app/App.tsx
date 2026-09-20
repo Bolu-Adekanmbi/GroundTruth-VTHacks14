@@ -29,7 +29,7 @@ import {
   ZoomIn,
   ZoomOut
 } from "lucide-react";
-import type { BuildingTraits, SceneMode } from "../../shared/scene-schema";
+import type { BuildingTraits, FacadeModuleType, SceneMode } from "../../shared/scene-schema";
 import type { VisionSuggestion } from "../../shared/api-schema";
 import { Button } from "../components/ui/Button";
 import { ErrorBoundary } from "../components/ui/ErrorBoundary";
@@ -97,6 +97,14 @@ const traitOptions: Partial<Record<keyof BuildingTraits, Array<{ value: string; 
   windowPattern: ["regular", "vertical-bands", "mixed", "sparse"].map(option),
   entrancePosition: ["north", "south", "east", "west", "corner", "unknown"].map(option)
 };
+
+const facadeModuleOptions: Array<{ value: FacadeModuleType; label: string; }> = [
+  { value: "tower", label: "Tower" },
+  { value: "portico", label: "Portico" },
+  { value: "canopy", label: "Canopy" },
+  { value: "bay", label: "Bay" },
+  { value: "wing", label: "Wing" }
+];
 
 function formatLabel(value: unknown) {
   return String(value)
@@ -268,6 +276,7 @@ export function App() {
     updateBuildingTrait("entrancePosition", traits.entrancePosition);
     updateBuildingTrait("facadeColor", visionSuggestion.dominantFacadeColor.toUpperCase());
     updateBuildingTrait("windowColumns", visionSuggestion.estimatedWindowColumns);
+    updateBuildingTrait("facadeModules", visionSuggestion.facadeModules.map((module) => module.type));
     setVisionSuggestion(null);
   }
 
@@ -453,6 +462,7 @@ export function App() {
                 {visionSuggestion ? <div className="vision-suggestion">
                   <p><i style={{ backgroundColor: visionSuggestion.dominantFacadeColor }} />{visionSuggestion.dominantFacadeColorLabel} · {visionSuggestion.estimatedWindowColumns} windows across visible facade</p>
                   <p>{visionSuggestion.floorsRange.min}-{visionSuggestion.floorsRange.max} floors · {formatLabel(visionSuggestion.traits.roofType)} roof · {Math.round(visionSuggestion.confidence * 100)}% overall confidence</p>
+                  {visionSuggestion.facadeModules.length > 0 ? <p>Visible modules: {visionSuggestion.facadeModules.map((module) => formatLabel(module.type)).join(", ")}</p> : null}
                   {visionSuggestion.assumptions.map((assumption) => <small key={assumption}>{assumption}</small>)}
                   <Button onClick={applyVisionSuggestion} variant="primary">Apply suggestions</Button>
                 </div> : null}
@@ -695,6 +705,25 @@ export function App() {
                   <input aria-label="Windows across visible facade" max="40" min="1" onChange={(event) => updateBuildingTrait("windowColumns", event.currentTarget.value ? Number(event.currentTarget.value) : undefined)} type="number" value={activeProject.building.windowColumns ?? ""} />
                 </div>
               </div>
+              <fieldset className="facade-module-controls">
+                <legend>Visible facade modules</legend>
+                {facadeModuleOptions.map((module) => {
+                  const selected = activeProject.building.facadeModules?.includes(module.value) ?? false;
+                  return <label key={module.value}>
+                    <input
+                      checked={selected}
+                      onChange={() => updateBuildingTrait(
+                        "facadeModules",
+                        selected
+                          ? (activeProject.building.facadeModules ?? []).filter((item) => item !== module.value)
+                          : [...(activeProject.building.facadeModules ?? []), module.value].slice(0, 3)
+                      )}
+                      type="checkbox"
+                    />
+                    {module.label}
+                  </label>;
+                })}
+              </fieldset>
             </div>
           </section>
         </aside>

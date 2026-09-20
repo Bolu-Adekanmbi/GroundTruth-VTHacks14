@@ -358,3 +358,23 @@ This log records completed implementation phases. It does not authorize starting
   - Accent color, per-field confidence, and visible-facade bearing are preserved in the adapter contract for a future richer review UI; the current renderer applies dominant facade color and window columns first.
   - Vite continues to warn about the existing large MapLibre and Three.js chunks; the build completes successfully.
 - Suggested commit message: `phase-15b: add opt-in visible-facade vision suggestions`
+
+## Phase 15B Extension - Height Enrichment And Visible Facade Modules
+
+- Completion date: 2026-09-19
+- Change summary: The live OSM footprint lookup now reads an explicit `height` tag before falling back to `building:levels` plus `roof:height`, converts feet to meters when tagged, and returns source/confidence/assumption metadata. Custom-scene generation applies the resulting editable height and optional floor count while preserving OSM provenance. Added an explicit, reviewed facade-module vocabulary (`tower`, `portico`, `canopy`, `bay`, `wing`) to the vision contract, trait controls, procedural scene, and GLB export. Modules are attached to the visible/front facade and do not alter the canonical map footprint.
+- Automated checks and results:
+  - `npm run typecheck` - passed
+  - `npm run lint` - passed
+  - `npm test` - passed, 78 tests
+  - `npm run build` - passed
+  - `git diff --check` - passed
+- Manual review instructions:
+  - With live GIS enabled, upload a custom photo and resolve an address whose OSM building has `height` or `building:levels`. Generate the scene and inspect Provenance for the OSM height source; edit Height afterward to confirm it remains a human override.
+  - Under **Traits**, select one or two visible facade modules. Confirm the 3D model and exported GLB contain those additions while the map footprint shape/source remains unchanged.
+  - With `VISION_ADAPTER_URL=mock`, request suggestions and confirm the offered canopy remains a proposal until **Apply suggestions** is selected.
+- Known limitations or deferred items:
+  - No general local GIS/LiDAR service is configured because availability, coverage, and terms are jurisdiction-specific. Untagged OSM buildings retain the existing editable default; a future adapter can be inserted after the OSM precedence step.
+  - Google Open Buildings 2.5D is intentionally not wired in: its published coverage does not make it a default source for U.S. locations, and it remains a low-confidence regional fallback only.
+  - Modules are recognizable procedural additions, not surveyed or photogrammetric reconstruction. They represent only the reviewed visible facade and can be removed from Traits.
+- Suggested commit message: `phase-15b: enrich OSM height and facade modules`

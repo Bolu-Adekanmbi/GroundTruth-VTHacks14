@@ -26,6 +26,9 @@ export function getMockVisionSuggestion() {
       floorsRange: { min: 2, max: 3 },
       estimatedWindowColumns: 8,
       estimatedWindowsPerFloor: 8,
+      facadeModules: [
+        { type: "canopy", confidence: 0.66, note: "A shallow entrance canopy is visible in the supplied facade." }
+      ],
       fieldConfidence: { color: 0.82, windows: 0.68, floors: 0.71, roof: 0.76 },
       confidence: 0.7,
       assumptions: [

@@ -172,6 +172,16 @@ describe("App", () => {
     expect(useSceneStore.getState().activeProject.building.windowColumns).toBe(8);
   });
 
+  it("keeps visible facade modules explicit and editable", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByLabelText("Canopy"));
+    await user.click(screen.getByLabelText("Portico"));
+
+    expect(useSceneStore.getState().activeProject.building.facadeModules).toEqual(["canopy", "portico"]);
+  });
+
   it("shows generated scorched controls without changing source traits", async () => {
     const user = userEvent.setup();
     render(<App />);

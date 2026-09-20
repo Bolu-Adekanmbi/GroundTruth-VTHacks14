@@ -14,10 +14,20 @@ describe("GLB export", () => {
     expect(building?.getObjectByName("BuildingMass")).toBeDefined();
     expect(building?.getObjectByName("Windows")).toBeDefined();
     expect(building?.getObjectByName("PrimaryEntrance")).toBeDefined();
+    expect(building?.getObjectByName("VisibleFacadeModules")).toBeDefined();
     expect(building?.getObjectByName("Roof")).toBeDefined();
     expect((building?.getObjectByName("Roof") as Mesh).geometry.type).toBe("ExtrudeGeometry");
     expect(scene.getObjectByName("Grid")).toBeUndefined();
     expect(getGlbFilename(project)).toBe("groundtruth-burruss-hall-base.glb");
+  });
+
+  it("exports selected facade modules as named building children", () => {
+    const project = structuredClone(getDemoSceneById("willard-building")!);
+    project.building.facadeModules = ["canopy", "bay"];
+    const scene = buildGlbScene(project);
+
+    expect(scene.getObjectByName("canopy_1")).toBeDefined();
+    expect(scene.getObjectByName("bay_2")).toBeDefined();
   });
 
   it("produces a nonempty GLB with scenario-specific named nodes", async () => {

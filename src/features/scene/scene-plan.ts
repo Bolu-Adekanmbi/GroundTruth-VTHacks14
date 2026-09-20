@@ -4,7 +4,7 @@ import {
   toLocalMeters,
   type LocalMeterPoint
 } from "../../../shared/geo";
-import type { BuildingTraits, SceneProject } from "../../../shared/scene-schema";
+import type { BuildingTraits, FacadeModuleType, SceneProject } from "../../../shared/scene-schema";
 
 export interface SceneBounds {
   minX: number;
@@ -34,6 +34,13 @@ export interface WindowPlan {
   facadeIndex: number;
 }
 
+export interface FacadeModulePlan {
+  type: FacadeModuleType;
+  position: [number, number, number];
+  scale: [number, number, number];
+  yawRad: number;
+}
+
 export interface ScenePlan {
   projectId: string;
   outline: LocalMeterPoint[];
@@ -45,6 +52,7 @@ export interface ScenePlan {
   roofType: BuildingTraits["roofType"];
   facades: FacadePlan[];
   windows: WindowPlan[];
+  facadeModules: FacadeModulePlan[];
   entrance: { position: [number, number, number]; yawRad: number };
   frontFacadeIndex: number;
   seed: number;
@@ -110,6 +118,7 @@ export function buildScenePlan(project: SceneProject): ScenePlan {
   const heightM = Math.max(project.building.floors * 2.8, project.building.heightM);
   const windows = buildWindows(markedFacades, project.building, heightM);
   const entranceFacade = markedFacades[entranceFacadeIndex];
+  const facadeModules = buildFacadeModules(project.building.facadeModules ?? [], entranceFacade, heightM);
 
   return {
     projectId: project.id,
@@ -122,6 +131,7 @@ export function buildScenePlan(project: SceneProject): ScenePlan {
     roofType: project.building.roofType,
     facades: markedFacades,
     windows,
+    facadeModules,
     entrance: {
       position: [
         entranceFacade.midpoint.x + Math.sin(entranceFacade.yawRad) * ENTRANCE_SURFACE_OFFSET_M,
@@ -133,6 +143,32 @@ export function buildScenePlan(project: SceneProject): ScenePlan {
     frontFacadeIndex,
     seed: hashProject(project)
   };
+}
+
+function buildFacadeModules(types: FacadeModuleType[], facade: FacadePlan, heightM: number): FacadeModulePlan[] {
+  const outwardX = Math.sin(facade.yawRad);
+  const outwardZ = Math.cos(facade.yawRad);
+  const atFacade = (offsetM: number, y: number): [number, number, number] => [
+    facade.midpoint.x + outwardX * offsetM,
+    y,
+    facade.midpoint.z + outwardZ * offsetM
+  ];
+
+  return types.map((type) => {
+    if (type === "tower") {
+      return { type, position: atFacade(-1.2, heightM * 0.65), scale: [Math.min(8, facade.lengthM * 0.26), heightM * 1.3, 3.6], yawRad: facade.yawRad };
+    }
+    if (type === "portico") {
+      return { type, position: atFacade(1.1, 2.2), scale: [5.2, 4.4, 2.2], yawRad: facade.yawRad };
+    }
+    if (type === "canopy") {
+      return { type, position: atFacade(1.0, 3.1), scale: [4.8, 0.28, 1.8], yawRad: facade.yawRad };
+    }
+    if (type === "bay") {
+      return { type, position: atFacade(0.85, Math.min(3.4, heightM * 0.38)), scale: [4.5, Math.min(4.8, heightM * 0.65), 1.7], yawRad: facade.yawRad };
+    }
+    return { type, position: atFacade(-0.5, Math.min(3.8, heightM * 0.45)), scale: [Math.min(9, facade.lengthM * 0.42), Math.min(6, heightM * 0.75), 4.5], yawRad: facade.yawRad };
+  });
 }
 
 function buildWindows(facades: FacadePlan[], traits: BuildingTraits, heightM: number) {

@@ -336,6 +336,7 @@ async function resolveCustomScene(project: SceneProject, addressDraft: string, s
   let nextProject = project;
   let locationResolved = false;
   let footprintResolved = false;
+  let heightEnriched = false;
 
   try {
     const geocodeResponse = await fetchWithTimeout("/api/geocode", {
@@ -406,12 +407,26 @@ async function resolveCustomScene(project: SceneProject, addressDraft: string, s
       const payload = (await footprintResponse.json()) as {
         data: Pick<SceneProject["footprint"], "feature" | "source" | "widthM" | "depthM" | "bearingDeg"> & {
           confidence: number;
+          heightEnrichment?: {
+            heightM: number;
+            floors?: number;
+            source: "osm-height" | "osm-levels";
+            confidence: number;
+            assumption: string;
+          };
         };
         warnings: string[];
       };
       warnings.push(...payload.warnings);
+      const heightEnrichment = payload.data.heightEnrichment;
+      heightEnriched = Boolean(heightEnrichment);
       nextProject = sceneProjectSchema.parse({
         ...nextProject,
+        building: heightEnrichment ? {
+          ...nextProject.building,
+          heightM: heightEnrichment.heightM,
+          ...(heightEnrichment.floors ? { floors: heightEnrichment.floors } : {})
+        } : nextProject.building,
         footprint: {
           ...nextProject.footprint,
           feature: payload.data.feature,
@@ -422,9 +437,18 @@ async function resolveCustomScene(project: SceneProject, addressDraft: string, s
         },
         confidence: {
           ...nextProject.confidence,
-          footprint: payload.data.confidence
+          footprint: payload.data.confidence,
+          traits: heightEnrichment ? Math.max(nextProject.confidence.traits, heightEnrichment.confidence) : nextProject.confidence.traits
         },
-        assumptions: payload.data.source === "manual-rectangle"
+        assumptions: heightEnrichment
+          ? ensureAssumption(nextProject.assumptions, {
+            id: "custom-assumption-height-enrichment",
+            claim: heightEnrichment.assumption,
+            affectedPath: "building.heightM",
+            evidenceClaim: "inferred",
+            rationale: "OSM height metadata supplements visible evidence and remains editable."
+          })
+          : payload.data.source === "manual-rectangle"
           ? ensureAssumption(nextProject.assumptions, {
             id: "custom-assumption-manual-footprint",
             claim: "No authoritative footprint was found; an editable manual rectangle is active.",
@@ -433,14 +457,26 @@ async function resolveCustomScene(project: SceneProject, addressDraft: string, s
             rationale: "Manual footprint controls keep the scene usable without a live GIS dependency."
           })
           : nextProject.assumptions,
-        provenance: ensureProvenance(nextProject.provenance, {
-          id: "custom-prov-footprint",
-          target: "footprint",
-          source: payload.data.source === "osm" ? "osm" : "manual",
-          claim: payload.data.source === "osm" ? "inferred" : "assumed",
-          label: payload.data.source === "osm" ? "OpenStreetMap building geometry" : "Manual footprint fallback",
-          evidenceIds: nextProject.evidence.map((photo) => photo.id)
-        })
+        provenance: ensureProvenance(
+          heightEnrichment
+            ? ensureProvenance(nextProject.provenance, {
+              id: "custom-prov-height-enrichment",
+              target: "building.heightM",
+              source: "osm",
+              claim: "inferred",
+              label: heightEnrichment.source === "osm-height" ? "OpenStreetMap height tag" : "OpenStreetMap building levels estimate",
+              evidenceIds: nextProject.evidence.map((photo) => photo.id)
+            })
+            : nextProject.provenance,
+          {
+            id: "custom-prov-footprint",
+            target: "footprint",
+            source: payload.data.source === "osm" ? "osm" : "manual",
+            claim: payload.data.source === "osm" ? "inferred" : "assumed",
+            label: payload.data.source === "osm" ? "OpenStreetMap building geometry" : "Manual footprint fallback",
+            evidenceIds: nextProject.evidence.map((photo) => photo.id)
+          }
+        )
       });
       footprintResolved = true;
     }
@@ -474,7 +510,7 @@ async function resolveCustomScene(project: SceneProject, addressDraft: string, s
       id: "prepare-traits",
       label: "Prepare building traits",
       status: "warning",
-      detail: "Best-effort defaults; review required"
+      detail: heightEnriched ? "OSM height metadata applied; visible facade traits require review" : "Best-effort defaults; review required"
     }
   ];
 

@@ -42,6 +42,7 @@ export function buildGlbScene(project: SceneProject) {
   building.add(createBuildingMass(plan, Boolean(scorchedPlan)));
   building.add(createWindows(plan, Boolean(scorchedPlan)));
   building.add(createEntrance(plan));
+  building.add(createFacadeModules(plan));
   building.add(createRoof(plan));
   scene.add(building);
 
@@ -114,6 +115,23 @@ function createEntrance(plan: ScenePlan) {
   mesh.position.set(...plan.entrance.position);
   mesh.rotation.y = plan.entrance.yawRad;
   return mesh;
+}
+
+function createFacadeModules(plan: ScenePlan) {
+  const group = new Group();
+  group.name = "VisibleFacadeModules";
+  plan.facadeModules.forEach((module, index) => {
+    const mesh = new Mesh(
+      new BoxGeometry(1, 1, 1),
+      new MeshStandardMaterial({ color: module.type === "canopy" ? "#3c4a49" : "#7a6759", roughness: 0.82 })
+    );
+    mesh.name = `${module.type}_${index + 1}`;
+    mesh.position.set(...module.position);
+    mesh.rotation.y = module.yawRad;
+    mesh.scale.set(...module.scale);
+    group.add(mesh);
+  });
+  return group;
 }
 
 function createRoof(plan: ScenePlan) {

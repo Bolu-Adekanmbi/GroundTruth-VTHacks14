@@ -60,6 +60,8 @@ export const evidencePhotoSchema = z.object({
   attribution: evidenceAttributionSchema
 });
 
+export const facadeModuleTypeSchema = z.enum(["tower", "portico", "canopy", "bay", "wing"]);
+
 export const buildingTraitsSchema = z.object({
   buildingType: z.enum(["institutional", "academic", "warehouse", "office", "mixed-use"]),
   floors: z.number().int().positive(),
@@ -71,7 +73,8 @@ export const buildingTraitsSchema = z.object({
   // These optional controls are visual facade overrides. They are deliberately
   // separate from the GIS footprint and remain editable after a vision suggestion.
   facadeColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
-  windowColumns: z.number().int().min(1).max(40).optional()
+  windowColumns: z.number().int().min(1).max(40).optional(),
+  facadeModules: z.array(facadeModuleTypeSchema).max(3).optional()
 });
 
 const confidenceValueSchema = z.number().min(0).max(1);
@@ -162,3 +165,4 @@ export type SceneMode = z.infer<typeof sceneModeSchema>;
 export type SceneProject = z.infer<typeof sceneProjectSchema>;
 export type EvidencePhoto = z.infer<typeof evidencePhotoSchema>;
 export type BuildingTraits = z.infer<typeof buildingTraitsSchema>;
+export type FacadeModuleType = z.infer<typeof facadeModuleTypeSchema>;

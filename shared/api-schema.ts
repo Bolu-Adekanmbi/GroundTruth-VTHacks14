@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { buildingTraitsSchema, polygonFeatureSchema, sceneProjectSchema } from "./scene-schema.js";
+import { buildingTraitsSchema, facadeModuleTypeSchema, polygonFeatureSchema, sceneProjectSchema } from "./scene-schema.js";
 
 export const apiSourceSchema = z.enum(["curated", "live", "fallback"]);
 
@@ -79,7 +79,14 @@ export const footprintResultSchema = z.object({
   widthM: z.number().positive(),
   depthM: z.number().positive(),
   bearingDeg: z.number().min(0).lt(360),
-  confidence: z.number().min(0).max(1)
+  confidence: z.number().min(0).max(1),
+  heightEnrichment: z.object({
+    heightM: z.number().positive(),
+    floors: z.number().int().positive().optional(),
+    source: z.enum(["osm-height", "osm-levels"]),
+    confidence: z.number().min(0).max(1),
+    assumption: z.string().min(1)
+  }).optional()
 });
 
 export const footprintResponseSchema = z.object({
@@ -113,6 +120,11 @@ export const visionSuggestionSchema = z.object({
   floorsRange: z.object({ min: z.number().int().positive(), max: z.number().int().positive() }),
   estimatedWindowColumns: z.number().int().min(1).max(40),
   estimatedWindowsPerFloor: z.number().int().min(1).max(40),
+  facadeModules: z.array(z.object({
+    type: facadeModuleTypeSchema,
+    confidence: z.number().min(0).max(1),
+    note: z.string().min(1)
+  })).max(3).default([]),
   visibleFacadeBearing: z.number().min(0).lt(360).optional(),
   fieldConfidence: z.object({
     color: z.number().min(0).max(1),

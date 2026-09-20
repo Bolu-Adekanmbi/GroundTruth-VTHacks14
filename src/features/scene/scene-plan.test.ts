@@ -65,4 +65,15 @@ describe("buildScenePlan", () => {
 
     expect(frontWindows).toHaveLength(12 * project.building.floors);
   });
+
+  it("adds selected visible-facade modules without changing the canonical outline", () => {
+    const project = demoProject("willard-building");
+    const baseline = buildScenePlan(project);
+    project.building.facadeModules = ["canopy", "portico"];
+    const plan = buildScenePlan(project);
+
+    expect(plan.outline).toEqual(baseline.outline);
+    expect(plan.facadeModules.map((module) => module.type)).toEqual(["canopy", "portico"]);
+    expect(plan.facadeModules.every((module) => module.position[1] > 0)).toBe(true);
+  });
 });

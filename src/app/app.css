@@ -561,6 +561,32 @@ code {
   width: 12px;
 }
 
+.facade-module-controls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px 10px;
+  margin: 0;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  padding: 0 0 10px;
+}
+
+.facade-module-controls legend {
+  grid-column: 1 / -1;
+  padding: 0;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.facade-module-controls label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ink-muted);
+  font-size: 12px;
+}
+
 .center-workspace {
   display: grid;
   align-self: start;

@@ -79,4 +79,45 @@ describe("GIS adapters", () => {
     expect(response.result.source).toBe("osm");
     expect(response.result.feature.properties.osm_name).toBe("Containing building");
   });
+
+  it("uses an explicit OSM height tag before any level-derived estimate", async () => {
+    const response = await lookupFootprint(
+      { longitude: -82, latitude: 39, widthM: 30, depthM: 20, bearingDeg: 0 },
+      {
+        env: { GROUNDTRUTH_ENABLE_LIVE_GIS: "true" },
+        fetcher: osmFetcher({ height: "42 ft", "building:levels": "9" })
+      }
+    );
+
+    expect(response.result.heightEnrichment).toMatchObject({ source: "osm-height" });
+    expect(response.result.heightEnrichment?.heightM).toBeCloseTo(12.8016, 4);
+  });
+
+  it("derives a clearly labeled estimate from OSM levels and roof height", async () => {
+    const response = await lookupFootprint(
+      { longitude: -83, latitude: 40, widthM: 30, depthM: 20, bearingDeg: 0 },
+      {
+        env: { GROUNDTRUTH_ENABLE_LIVE_GIS: "true" },
+        fetcher: osmFetcher({ "building:levels": "3", "roof:height": "2.5 m" })
+      }
+    );
+
+    expect(response.result.heightEnrichment).toMatchObject({ source: "osm-levels", floors: 3, heightM: 11.5 });
+  });
 });
+
+function osmFetcher(tags: Record<string, string>) {
+  return vi.fn().mockResolvedValue({
+    ok: true,
+    json: () => Promise.resolve({
+      elements: [{
+        type: "way",
+        tags,
+        geometry: [
+          { lon: -80.0001, lat: 36.9999 }, { lon: -79.9999, lat: 36.9999 },
+          { lon: -79.9999, lat: 37.0001 }, { lon: -80.0001, lat: 37.0001 }
+        ]
+      }]
+    })
+  }) as unknown as typeof fetch;
+}

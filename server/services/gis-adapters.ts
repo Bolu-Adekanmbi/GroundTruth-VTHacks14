@@ -252,6 +252,7 @@ async function lookupOsmFootprint(center: LngLat, options: GisAdapterOptions) {
     const openRing = way.geometry.map((coordinate) => [coordinate.lon, coordinate.lat] satisfies LngLat);
     const ring = [...openRing, openRing[0]];
     const dimensions = getApproximateDimensionsM(ring);
+    const heightEnrichment = getOsmHeightEnrichment(way.tags);
 
     return {
       feature: {
@@ -270,11 +271,49 @@ async function lookupOsmFootprint(center: LngLat, options: GisAdapterOptions) {
       widthM: Math.max(1, Math.round(dimensions.widthM)),
       depthM: Math.max(1, Math.round(dimensions.depthM)),
       bearingDeg: 0,
-      confidence: 0.7
+      confidence: 0.7,
+      ...(heightEnrichment ? { heightEnrichment } : {})
     };
   } catch {
     return undefined;
   }
+}
+
+function getOsmHeightEnrichment(tags: Record<string, string> | undefined) {
+  const explicitHeightM = parseLengthM(tags?.height);
+  if (explicitHeightM) {
+    return {
+      heightM: explicitHeightM,
+      source: "osm-height" as const,
+      confidence: 0.84,
+      assumption: "OSM height tag is treated as an attributed map value and should be reviewed against local authoritative data."
+    };
+  }
+
+  const floors = parsePositiveInteger(tags?.["building:levels"]);
+  if (!floors) return undefined;
+  const roofHeightM = parseLengthM(tags?.["roof:height"]) ?? 0;
+  return {
+    heightM: floors * 3 + roofHeightM,
+    floors,
+    source: "osm-levels" as const,
+    confidence: 0.62,
+    assumption: "Height is derived from OSM building:levels at 3 m per level plus any tagged roof height; it is not surveyed."
+  };
+}
+
+function parsePositiveInteger(value: string | undefined) {
+  const parsed = Number.parseInt(value ?? "", 10);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
+}
+
+function parseLengthM(value: string | undefined) {
+  if (!value) return undefined;
+  const normalized = value.trim().toLowerCase();
+  const parsed = Number.parseFloat(normalized);
+  if (!Number.isFinite(parsed) || parsed <= 0) return undefined;
+  if (normalized.includes("ft") || normalized.includes("feet")) return parsed * 0.3048;
+  return parsed;
 }
 
 function distanceToBuildingMeters(center: LngLat, geometry: Array<{ lon: number; lat: number }>) {
