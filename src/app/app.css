@@ -773,7 +773,7 @@ code {
   position: absolute;
   z-index: 3;
   right: 14px;
-  bottom: 44px;
+  bottom: 94px;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -802,6 +802,18 @@ code {
   color: var(--danger);
   font-family: var(--font-mono);
   font-weight: 600;
+}
+
+@media (max-width: 900px) {
+  .map-disaster-legend {
+    right: 10px;
+    bottom: 88px;
+  }
+
+  .coordinate-readout {
+    right: 10px;
+    bottom: 42px;
+  }
 }
 
 .orientation-cue {

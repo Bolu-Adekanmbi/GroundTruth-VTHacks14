@@ -400,3 +400,9 @@ This log records completed implementation phases. It does not authorize starting
   - The remaining Phase 7 rotated-footprint renderer alignment issue can still affect a model derived from a manually rotated footprint.
   - The full local Playwright run was interrupted by the environment after its first seven passing tests; the affected Base, Scorched, Disaster, and corrected-coordinate browser checks were rerun in focused groups and passed.
 - Suggested commit message: `phase-15e: improve procedural scene fidelity`
+
+## Post-Phase UI Fix - Map operational legend overlap
+
+- Completion date: 2026-09-19
+- Change summary: Moved the Disaster operational-status legend above the cursor/footprint coordinate readout and added narrow-screen spacing so the live map coordinate remains readable when the pointer is over the map.
+- Verification: `npm run typecheck`, `npm run lint`, `npm test -- --run src/app/App.test.tsx` (12 tests), and `git diff --check` passed.
