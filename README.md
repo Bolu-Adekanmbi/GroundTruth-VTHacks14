@@ -121,6 +121,11 @@ Live GIS requests use conservative timeouts, caching, attribution, and a manual 
 
 React, TypeScript, Vite, Express, Zod, Zustand, MapLibre, OpenStreetMap, Three.js, React Three Fiber, Vitest, and Playwright.
 
+## Future Ideas (gotten from the judging demo)
+- Adding a way to scrape data for internal building layouts, so that for emergency responders, they can also see not just how the building looks like from the outside, but also how the interactions and layouts internally look and relate to each other.
+  - Perhaps this could be done by scraping from public building data, and maybe layouts from places like Zillow, but I'll need to check if that's allowed in the first place.
+  - Overall, this could be really helpful for responders to quickly figure out how the building is built and how it interacts with the surrounding environment, even simulating earthquakes, floods, fires, and other disasters.
+
 ## License and attribution
 
 See [LICENSE](LICENSE). Curated evidence photos retain their original attribution and license information in the application. OpenStreetMap data is displayed with required attribution.
